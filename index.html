@@ -391,6 +391,28 @@
       }
     }
 
+    /* Kawaii Spinner Asset Loader */
+    .kawaii-spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #e2e8f0;
+      border-top: 4px solid #ff6b81;
+      border-right: 4px solid #feca57;
+      border-bottom: 4px solid #38bdf8;
+      border-radius: 50%;
+      animation: kawaiiSpin 0.75s linear infinite;
+      box-shadow: 2px 2px 0px #000000;
+    }
+
+    @keyframes kawaiiSpin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
     /* Kawaii Mobile Bottom Control Bar */
     #mobile-controls {
       position: absolute;
@@ -833,11 +855,9 @@
         </div>
       </div>
 
-      <!-- Kawaii Asset Loader -->
+      <!-- Kawaii Spinner Asset Loader -->
       <div id="loader-container" style="display: flex; justify-content: center; align-items: center; margin-bottom: 14px; z-index: 10;">
-        <div style="width: 220px; height: 18px; background: #ffffff; border: 3px solid #000000; border-radius: 12px; overflow: hidden; box-shadow: 3px 3px 0px #000000;">
-          <div id="loader-bar" style="width: 0%; height: 100%; background: #ff6b81; transition: width 0.15s ease;"></div>
-        </div>
+        <div class="kawaii-spinner"></div>
       </div>
 
       <button class="btn" id="start-btn" style="position: relative; z-index: 10; display: none;">START BATTLE</button>
@@ -1050,12 +1070,13 @@
       });
     }
 
-    // --- SPRITE MANAGER WITH PRELOADER ---
+    // --- SPRITE MANAGER WITH PRELOADER & GPU DECODING ---
     class SpriteManager {
       constructor() {
         this.sprites = {};
         this.loadedCount = 0;
         this.totalSprites = 0;
+        this.isAllLoaded = false;
         this.onProgress = null;
         this.onComplete = null;
       }
@@ -1070,31 +1091,38 @@
           if (this.onProgress) {
             this.onProgress(this.loadedCount, this.totalSprites);
           }
-          if (this.loadedCount >= this.totalSprites && this.onComplete) {
-            this.onComplete();
+          if (this.loadedCount >= this.totalSprites) {
+            this.isAllLoaded = true;
+            if (this.onComplete) this.onComplete();
           }
         };
 
-        img.onload = handleDone;
+        img.onload = () => {
+          if ('decode' in img) {
+            img.decode().then(handleDone).catch(handleDone);
+          } else {
+            handleDone();
+          }
+        };
+
         img.onerror = () => {
           console.warn('Failed to load sprite:', src);
           handleDone();
         };
+
         img.src = src;
       }
 
       get(key) {
-        return this.sprites[key] || null;
+        const img = this.sprites[key];
+        if (img && img.complete && img.naturalWidth > 0) {
+          return img;
+        }
+        return null;
       }
     }
 
     const spriteMgr = new SpriteManager();
-    spriteMgr.onProgress = (loaded, total) => {
-      const pct = Math.round((loaded / total) * 100);
-      const bar = document.getElementById('loader-bar');
-      if (bar) bar.style.width = pct + '%';
-    };
-
     spriteMgr.onComplete = () => {
       const loaderContainer = document.getElementById('loader-container');
       const startBtn = document.getElementById('start-btn');
@@ -2315,6 +2343,7 @@
     }
 
     function startNewGame() {
+      if (!spriteMgr.isAllLoaded) return;
       tryLockLandscape();
       score = 0;
       screenShake = 0;
