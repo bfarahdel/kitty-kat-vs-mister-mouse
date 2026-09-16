@@ -1,0 +1,3751 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kitty Kat vs. Mister Mouse: Moat Mayhem!</title>
+  <meta name="description" content="A 2D browser battle game where Kitty Kat fights Mister Mouse across a city moat!">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐱🐭</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Patrick+Hand&family=Fredoka:wght@600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Patrick Hand', 'Gaegu', 'Fredoka', cursive, sans-serif;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #f7f9fc;
+      color: #000;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #e0f2fe;
+      touch-action: none;
+    }
+
+    /* Minimalist Kawaii Line Art UI Overlays */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .overlay.hidden {
+      display: none;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    h1.game-title {
+      font-size: 3.8rem;
+      font-family: 'Gaegu', 'Patrick Hand', cursive;
+      color: #000;
+      text-shadow: 3px 3px 0px #ff6b81, -2px -2px 0px #fff;
+      margin-bottom: 5px;
+      letter-spacing: 2px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .subtitle {
+      font-size: 1.6rem;
+      font-family: 'Patrick Hand', cursive;
+      color: #444;
+      margin-bottom: 25px;
+      font-weight: bold;
+      position: relative;
+      z-index: 10;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 3px solid #000000;
+      border-radius: 20px;
+      padding: 24px 34px;
+      max-width: 520px;
+      margin-bottom: 25px;
+      box-shadow: 6px 6px 0px #000000;
+      position: relative;
+      z-index: 10;
+    }
+
+    .instructions {
+      text-align: left;
+      font-size: 1.2rem;
+      line-height: 1.6;
+      color: #111;
+    }
+
+    .instructions span {
+      color: #ff4757;
+      font-weight: bold;
+    }
+
+    /* Responsive Instructions Swapping */
+    .instructions-desktop {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .instructions-mobile {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .instructions-badge-desktop {
+      display: inline;
+    }
+
+    .instructions-badge-mobile {
+      display: none;
+    }
+
+    @media (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+      .instructions-desktop {
+        display: none !important;
+      }
+      .instructions-mobile {
+        display: flex !important;
+      }
+      .instructions-badge-desktop {
+        display: none !important;
+      }
+      .instructions-badge-mobile {
+        display: inline !important;
+      }
+    }
+
+    .btn {
+      background: #ffffff;
+      color: #000000;
+      font-family: 'Gaegu', 'Patrick Hand', cursive;
+      font-size: 1.8rem;
+      font-weight: bold;
+      padding: 12px 42px;
+      border: 3px solid #000000;
+      border-radius: 40px;
+      cursor: pointer;
+      box-shadow: 5px 5px 0px #000000;
+      transition: all 0.15s ease;
+      outline: none;
+    }
+
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 7px 7px 0px #000000;
+      background: #fff0f3;
+    }
+
+    .btn:active {
+      transform: translateY(2px);
+      box-shadow: 2px 2px 0px #000000;
+    }
+
+    /* Minimalist Line-Art HUD Elements */
+    /* Responsive Line-Art HUD Elements */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 15px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .hud-box {
+      background: #ffffff;
+      padding: 10px 18px;
+      border-radius: 16px;
+      border: 3px solid #000000;
+      box-shadow: 4px 4px 0px #000000;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 220px;
+      max-width: 340px;
+      color: #000000;
+    }
+
+    .hud-title {
+      font-size: 1.15rem;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .meter-bar {
+      width: 100%;
+      height: 18px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      border: 2px solid #000000;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 100%;
+      transition: width 0.2s ease-out;
+    }
+
+    #nap-fill {
+      background: #ff6b81;
+    }
+
+    #nap-fill.critical {
+      background: #ff4757;
+      animation: pulse 0.6s infinite alternate;
+    }
+
+    #cheese-fill {
+      background: #feca57;
+    }
+
+    @keyframes pulse {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0.4;
+      }
+    }
+
+    /* Main Menu Floating Emojis (Background Layer) */
+    .floating-emoji {
+      position: absolute;
+      font-size: 2.5rem;
+      pointer-events: none;
+      user-select: none;
+      animation: floatAcross 12s linear infinite;
+      z-index: 0;
+      opacity: 0.45;
+    }
+
+    @keyframes floatAcross {
+      0% {
+        transform: translateX(-100px) translateY(0px) rotate(0deg);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 0.45;
+      }
+
+      90% {
+        opacity: 0.45;
+      }
+
+      100% {
+        transform: translateX(calc(100vw + 100px)) translateY(-30px) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+    .hud-center {
+      text-align: center;
+      background: #ffffff;
+      border: 3px solid #000;
+      padding: 8px 20px;
+      border-radius: 18px;
+      box-shadow: 4px 4px 0px #000;
+    }
+
+    .score-display {
+      font-size: 2.0rem;
+      font-family: 'Gaegu', cursive;
+      font-weight: 900;
+      color: #000000;
+    }
+
+    .combo-display {
+      font-size: 1.25rem;
+      color: #ff4757;
+      font-weight: bold;
+      background: #ffffff;
+      border: 3px solid #000;
+      padding: 6px 18px;
+      border-radius: 18px;
+      box-shadow: 4px 4px 0px #000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .combo-display.active {
+      opacity: 1;
+      animation: bounce 0.5s infinite alternate;
+    }
+
+    @keyframes bounce {
+      from {
+        transform: scale(1);
+      }
+
+      to {
+        transform: scale(1.15);
+      }
+    }
+
+    /* Small Screen Optimization (Phones & Small Tablets) */
+    @media (max-width: 768px) {
+      #hud {
+        padding: 10px 14px;
+        gap: 8px;
+      }
+
+      .hud-box {
+        min-width: 0;
+        flex: 1;
+        padding: 6px 10px;
+        border-radius: 12px;
+        border-width: 2.5px;
+        box-shadow: 2px 2px 0px #000000;
+        gap: 3px;
+      }
+
+      .hud-title {
+        font-size: 0.82rem;
+      }
+
+      .meter-bar {
+        height: 12px;
+        border-radius: 8px;
+      }
+
+      h1.game-title {
+        font-size: min(2.5rem, 9vw);
+      }
+
+      .subtitle {
+        font-size: min(1.2rem, 5vw);
+      }
+
+      .card {
+        padding: 16px 20px;
+        max-width: 90vw;
+      }
+    }
+
+    /* Large & Ultra-Wide Screen Optimization (1440p & 4K) */
+    @media (min-width: 1600px) {
+      #hud {
+        padding: 24px 30px;
+        gap: 25px;
+      }
+
+      .hud-box {
+        min-width: 320px;
+        max-width: 450px;
+        padding: 14px 24px;
+        border-width: 4px;
+        border-radius: 20px;
+        box-shadow: 6px 6px 0px #000000;
+        gap: 8px;
+      }
+
+      .hud-title {
+        font-size: 1.45rem;
+      }
+
+      .meter-bar {
+        height: 24px;
+        border-radius: 14px;
+      }
+
+      h1.game-title {
+        font-size: 5rem;
+      }
+
+      .subtitle {
+        font-size: 2.2rem;
+      }
+
+      .card {
+        max-width: 680px;
+        padding: 34px 44px;
+        border-width: 4px;
+        box-shadow: 8px 8px 0px #000000;
+      }
+
+      .btn {
+        font-size: 1.5rem;
+        padding: 18px 45px;
+        border-width: 4px;
+      }
+    }
+
+    /* Compact Height Optimization (Mobile Landscape) */
+    @media (max-height: 520px) {
+      .overlay {
+        justify-content: center;
+        padding: 10px 14px;
+      }
+      #gameover-overlay,
+      #victory-overlay {
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 15px !important;
+      }
+      h1.game-title {
+        font-size: min(2.4rem, 7.5vw);
+        margin-bottom: 2px;
+      }
+      .subtitle {
+        font-size: min(1.05rem, 4vw);
+        margin-bottom: 6px;
+      }
+      .card {
+        padding: 8px 16px;
+        margin-bottom: 8px;
+        max-width: 94vw;
+      }
+      .btn {
+        font-size: 1.25rem;
+        padding: 8px 28px;
+      }
+    }
+
+    #gameover-overlay {
+      justify-content: center !important;
+      align-items: center !important;
+      text-align: center !important;
+    }
+
+    #victory-overlay {
+      background: transparent !important;
+      backdrop-filter: none !important;
+      justify-content: flex-start !important;
+      align-items: center !important;
+      text-align: center !important;
+      padding-top: max(160px, 52vh) !important;
+    }
+
+    /* Kawaii Rotate Screen Overlay (Disabled for Portrait Mode) */
+    #rotate-prompt-overlay {
+      display: none !important;
+    }
+
+    .rotate-card {
+      background: #ffffff;
+      border: 4px solid #000000;
+      border-radius: 28px;
+      padding: 30px 22px;
+      max-width: 370px;
+      width: 90%;
+      box-shadow: 8px 8px 0px #000000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .rotate-anim-wrap {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .rotate-phone {
+      width: 50px;
+      height: 82px;
+      background: #ffffff;
+      border: 3.5px solid #000000;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.12);
+      animation: phoneRotateAnim 2.6s ease-in-out infinite;
+      position: relative;
+    }
+
+    .rotate-phone::after {
+      content: '';
+      position: absolute;
+      bottom: 5px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #000000;
+    }
+
+    .rotate-phone-screen {
+      font-size: 1.8rem;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .rotate-arrow-badge {
+      position: absolute;
+      right: 0;
+      top: 10px;
+      font-size: 2.2rem;
+      color: #38bdf8;
+      text-shadow: 2px 2px 0px #000000;
+      animation: spinBounce 2.6s ease-in-out infinite;
+      user-select: none;
+    }
+
+    @keyframes phoneRotateAnim {
+
+      0%,
+      15% {
+        transform: rotate(0deg) scale(1);
+      }
+
+      45%,
+      70% {
+        transform: rotate(90deg) scale(1.08);
+      }
+
+      85%,
+      100% {
+        transform: rotate(0deg) scale(1);
+      }
+    }
+
+    @keyframes spinBounce {
+
+      0%,
+      15% {
+        transform: rotate(0deg) scale(0.9);
+      }
+
+      45%,
+      70% {
+        transform: rotate(180deg) scale(1.15);
+      }
+
+      85%,
+      100% {
+        transform: rotate(360deg) scale(0.9);
+      }
+    }
+
+    .rotate-title {
+      font-family: 'Gaegu', 'Patrick Hand', cursive;
+      font-size: 2.3rem;
+      color: #000000;
+      margin: 0;
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 0px #ffb6c1;
+    }
+
+    .rotate-desc {
+      font-size: 1.12rem;
+      line-height: 1.5;
+      color: #333333;
+      margin: 0;
+      font-weight: 500;
+    }
+
+    .btn-rotate-dismiss {
+      font-size: 1.05rem !important;
+      padding: 10px 24px !important;
+      border-radius: 25px !important;
+      background: #f1f5f9 !important;
+      color: #555555 !important;
+      margin-top: 5px;
+      box-shadow: 3px 3px 0px #000000 !important;
+      border-width: 3px !important;
+      cursor: pointer;
+    }
+
+    .btn-rotate-dismiss:hover {
+      background: #e2e8f0 !important;
+      color: #000000 !important;
+    }
+
+    /* Only display when screen is in portrait orientation on phone/tablet */
+    @media (orientation: portrait) and (max-width: 1024px) {
+      body:not(.portrait-dismissed) #rotate-prompt-overlay {
+        display: flex;
+      }
+    }
+
+    /* Hide immediately when device is rotated to landscape */
+    @media (orientation: landscape) {
+      #rotate-prompt-overlay {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <!-- Kitty Kat Health Meter -->
+      <div class="hud-box">
+        <div class="hud-title">
+          <span>🐱 Kitty Kat</span>
+          <span id="nap-pct">100%</span>
+        </div>
+        <div class="meter-bar">
+          <div id="nap-fill" class="meter-fill"></div>
+        </div>
+      </div>
+
+      <!-- Rampage Mode Tag Floating Alert -->
+      <div class="combo-display" id="combo-tag">🔥 RAMPAGE MODE 2x!</div>
+
+      <!-- Mister Mouse Health Meter -->
+      <div class="hud-box">
+        <div class="hud-title">
+          <span>🐭 Mister Mouse</span>
+          <span id="cheese-pct">100%</span>
+        </div>
+        <div class="meter-bar">
+          <div id="cheese-fill" class="meter-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title Screen Overlay -->
+    <div class="overlay" id="title-overlay">
+      <h1 class="game-title">Kitty Kat vs. Mister Mouse</h1>
+      <div class="subtitle" style="margin-bottom: 18px;">Moat Mayhem!</div>
+
+      <div class="card" style="max-width: 520px; padding: 18px 26px; margin-bottom: 20px; text-align: left;">
+        <div style="font-size: 1.25rem; font-weight: bold; margin-bottom: 12px; color: #111; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+          <span>🎮 How to Play</span>
+          <span class="instructions-badge-desktop" style="font-size: 0.85rem; font-weight: normal; color: #64748b;">Desktop</span>
+          <span class="instructions-badge-mobile" style="font-size: 0.85rem; font-weight: normal; color: #64748b;">Mobile</span>
+        </div>
+
+        <!-- Desktop Instructions (Displayed on Desktop Screens) -->
+        <div class="instructions-desktop" style="font-size: 1.05rem; line-height: 1.55; color: #1e293b;">
+          <div>
+            🐾 <strong>Move:</strong> Press <strong>A / D</strong> or the <strong>Arrow Keys</strong>
+          </div>
+          <div>
+            🐟 <strong>Throw Fish:</strong> Press the <strong>Spacebar</strong>
+          </div>
+          <div>
+            🌀 <strong>Tail Whip &amp; Deflect:</strong> Press the <strong>T Key</strong>
+          </div>
+        </div>
+
+        <!-- Mobile Instructions (Displayed on Mobile Screens) -->
+        <div class="instructions-mobile" style="font-size: 1.05rem; line-height: 1.55; color: #1e293b;">
+          <div>
+            🐾 <strong>Move:</strong> <strong>Touch &amp; Drag</strong>
+          </div>
+          <div>
+            🐟 <strong>Throw Fish:</strong> <strong>Tap the Screen</strong>
+          </div>
+          <div>
+            🌀 <strong>Tail Whip &amp; Deflect:</strong> <strong>Double-Tap the Screen</strong>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" id="start-btn" style="position: relative; z-index: 10;">START BATTLE</button>
+
+      <!-- Footer Credits -->
+      <div class="title-footer-credits" style="margin-top: 18px; font-size: 1.25rem; color: #334155; font-family: 'Patrick Hand', 'Gaegu', cursive; display: flex; flex-direction: column; gap: 3px; align-items: center; text-shadow: 1px 1px 0px #ffffff; position: relative; z-index: 10;">
+        <div>Developed by <strong>Britny</strong> ✨</div>
+      </div>
+    </div>
+
+    <!-- Minimal Defeated Overlay -->
+    <div class="overlay hidden" id="gameover-overlay">
+      <h1 class="game-title" style="color: #ff4757;">DEFEATED 💔</h1>
+      <button class="btn" id="restart-btn" style="margin-top: 25px;">TRY AGAIN 🔄</button>
+    </div>
+
+    <!-- Minimal Victory Overlay -->
+    <div class="overlay hidden" id="victory-overlay">
+      <button class="btn" id="victory-btn">PLAY AGAIN 🔄</button>
+    </div>
+
+    <!-- Kawaii Landscape Mode Prompt Overlay -->
+    <div id="rotate-prompt-overlay">
+      <div class="rotate-card">
+        <div class="rotate-anim-wrap">
+          <div class="rotate-phone">
+            <div class="rotate-phone-screen">🐱</div>
+          </div>
+          <div class="rotate-arrow-badge">↻</div>
+        </div>
+        <h2 class="rotate-title">Rotate to Landscape!</h2>
+        <p class="rotate-desc">
+          <strong>Kitty Kat vs. Mister Mouse: Moat Mayhem!</strong> 🎮<br>
+          Turn your phone for widescreen or play natively in portrait mode! 🐾🐭
+        </p>
+        <button class="btn btn-rotate-dismiss" id="dismiss-rotate-btn">Play in Portrait Anyway ❯</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- WEB AUDIO SYNTHESIZER ---
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => { });
+        }
+      }
+
+      playCrumble() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+
+      playCollapse() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.4);
+      }
+
+      playSwipe() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.1);
+      }
+
+      playWhip() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(620, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.18);
+      }
+
+      playEat() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+      }
+
+      playHurt() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.25);
+      }
+
+      playCountBeep(freq = 520) {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, this.ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
+      }
+
+      playHeadKnock() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.22);
+        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.22);
+      }
+
+      playVictoryFanfare() {
+        if (this.muted || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // Triumphant C5, E5, G5, C6 Fanfare Arpeggio
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = idx === 3 ? 'triangle' : 'sine';
+          const startTime = this.ctx.currentTime + idx * 0.12;
+          const duration = idx === 3 ? 0.6 : 0.2;
+          osc.frequency.setValueAtTime(freq, startTime);
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(0.4, startTime + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        });
+      }
+    }
+
+    const sound = new SoundFX();
+
+    // Toggle sound button (optional fallback if button is present)
+    const muteBtn = document.getElementById('mute-btn');
+    if (muteBtn) {
+      muteBtn.addEventListener('click', () => {
+        sound.muted = !sound.muted;
+        muteBtn.innerText = sound.muted ? '🔇' : '🔊';
+      });
+    }
+
+    // --- SPRITE MANAGER ---
+    class SpriteManager {
+      constructor() {
+        this.sprites = {};
+      }
+
+      loadSprite(key, src) {
+        const img = new Image();
+        img.onload = () => {
+          this.sprites[key] = img;
+        };
+        img.onerror = () => {
+          console.warn('Failed to load sprite:', src);
+          this.sprites[key] = null;
+        };
+        img.src = src;
+      }
+
+      get(key) {
+        return this.sprites[key] || null;
+      }
+    }
+
+    const spriteMgr = new SpriteManager();
+    spriteMgr.loadSprite('kitty-idle', 'assets/kitty-idle.png?v=3');
+    spriteMgr.loadSprite('kitty-walk1', 'assets/kitty-walk1.png?v=3');
+    spriteMgr.loadSprite('kitty-walk2', 'assets/kitty-walk2.png?v=3');
+    spriteMgr.loadSprite('kitty-swipe', 'assets/kitty-swipe.png?v=3');
+    spriteMgr.loadSprite('kitty-happy', 'assets/kitty-happy.png?v=3');
+    spriteMgr.loadSprite('kitty-hurt', 'assets/kitty-hurt.png?v=3');
+    spriteMgr.loadSprite('kitty-sleepy', 'assets/kitty-sleepy.png?v=3');
+
+    spriteMgr.loadSprite('mouse-idle', 'assets/mouse-idle.png?v=3');
+    spriteMgr.loadSprite('mouse-walk1', 'assets/mouse-walk1.png?v=3');
+    spriteMgr.loadSprite('mouse-walk2', 'assets/mouse-walk2.png?v=3');
+    spriteMgr.loadSprite('mouse-attack', 'assets/mouse-attack.png?v=3');
+    spriteMgr.loadSprite('mouse-happy', 'assets/mouse-happy.png?v=3');
+    spriteMgr.loadSprite('mouse-hurt', 'assets/mouse-hurt.png?v=3');
+    spriteMgr.loadSprite('mouse-defeated', 'assets/mouse-defeated.png?v=3');
+    spriteMgr.loadSprite('tank', 'assets/tank.png');
+
+    // --- GAME ENGINE & RESPONSIVE SCALING SYSTEM ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let gameScale = 1.0;
+    let groundHeight = 80;
+    let groundY = 0;
+    let moatX = 0;
+    let moatWidth = 150;
+
+    // Game Variables
+    let gameState = 'TITLE'; // TITLE, COUNTDOWN, PLAYING, LEVEL_COMPLETE, GAMEOVER, VICTORY
+    let countdownTimer = 0;
+    let lastCountBeat = -1;
+    let victoryTimer = 0;
+    let goldConfetti = [];
+    let currentLevel = 1;
+    let score = 0;
+    let cameraX = 0;
+    let screenShake = 0;
+
+    // Player (Kittysaurus) State
+    const kitty = {
+      x: 100,
+      y: 0,
+      width: 460,
+      height: 460,
+      vx: 0,
+      speed: 7.5,
+      direction: 1, // 1 = right, -1 = left
+      napMeter: 100, // HP
+      state: 'idle', // idle, walk, swipe, happy, hurt, tailwhip
+      stateTimer: 0,
+      walkAnimTimer: 0,
+      swipeCooldown: 0,
+      tailWhipCooldown: 0,
+      deflectStreak: 0
+    };
+
+    // AI Rival (Rex) State
+    const rat = {
+      x: 800,
+      y: 0,
+      width: 440,
+      height: 440,
+      vx: 0,
+      speed: 3.8,
+      direction: -1,
+      cheeseMeter: 100, // Rex HP
+      state: 'idle',
+      stateTimer: 0,
+      walkAnimTimer: 0,
+      attackCooldown: 0,
+      patrolDir: -1,
+      patrolTimer: 0,
+      targetBuilding: null,
+      tailWhipCooldown: 0
+    };
+
+    // Environment & Game Objects
+    let buildings = [];
+    let heavyProjectiles = [];
+    let skyDrops = [];
+    let particles = [];
+    let tanks = [];
+    let helicopters = [];
+
+    // Combo system
+    let recentDestroys = [];
+    let rampageActive = false;
+
+    function updateDimensions() {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Responsive scale factor:
+      // In reference resolution (1366 x 768), Kitty=460, Moat=280, Rat=440 (Total = 1180px)
+      // When screen is narrow (portrait or mobile), scale is constrained by width so both Kaijus fit.
+      // When screen is wide (landscape / desktop), scale expands to fill larger screens!
+      if (w < h) {
+        // Portrait mobile / tablet: width is constrained
+        gameScale = Math.max(0.38, Math.min(2.5, w / 950));
+      } else {
+        // Landscape / desktop / laptop / wide screens
+        const scaleW = w / 1366;
+        const scaleH = h / 768;
+        gameScale = Math.max(0.40, Math.min(2.5, Math.min(scaleW, scaleH * 1.15)));
+      }
+
+      groundHeight = Math.round(Math.max(45, Math.min(140, 80 * gameScale)));
+      groundY = h - groundHeight;
+
+      // Kaiju scaled dimensions
+      kitty.width = Math.round(460 * gameScale);
+      kitty.height = Math.round(460 * gameScale);
+      kitty.speed = Math.max(4.0, 7.5 * gameScale);
+
+      rat.width = Math.round(440 * gameScale);
+      rat.height = Math.round(440 * gameScale);
+      rat.speed = Math.max(2.2, 3.8 * gameScale);
+
+      // Moat scaled dimensions (reduced to give more arena turf to Cat & Rat)
+      moatWidth = Math.round(Math.max(55, Math.min(w * 0.18, 190 * gameScale)));
+      moatX = Math.round((w - moatWidth) / 2);
+    }
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      updateDimensions();
+
+      // Clamp Kaiju positions so they never get trapped outside the screen or moat
+      if (kitty) {
+        const minKittyX = -kitty.width * 0.35;
+        const maxKittyX = moatX - kitty.width * 0.68;
+        kitty.x = Math.max(minKittyX, Math.min(kitty.x, maxKittyX));
+      }
+      if (rat) {
+        const minRatX = moatX + moatWidth - Math.round(rat.width * 0.15);
+        const maxRatX = canvas.width - Math.round(rat.width * 0.65);
+        rat.x = Math.max(minRatX, Math.min(rat.x, maxRatX));
+      }
+
+      // Re-adjust building positions and floorHeights if buildings exist
+      if (buildings && buildings.length > 0) {
+        const numPerSide = buildings.length / 2;
+        const leftSpace = moatX - 20;
+        const leftStep = leftSpace / numPerSide;
+        const rightStart = moatX + moatWidth + 10;
+        const rightSpace = canvas.width - rightStart - 10;
+        const rightStep = rightSpace / numPerSide;
+
+        buildings.forEach((bld, i) => {
+          bld.floorHeight = Math.round(Math.max(22, 45 * gameScale));
+          if (i < numPerSide) {
+            bld.width = Math.max(30, Math.min(130 * gameScale, Math.floor(leftStep * 0.72)));
+            bld.x = Math.floor(10 + i * leftStep);
+          } else {
+            const rIdx = i - numPerSide;
+            bld.width = Math.max(30, Math.min(130 * gameScale, Math.floor(rightStep * 0.72)));
+            bld.x = Math.floor(rightStart + rIdx * rightStep);
+          }
+        });
+      }
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Input state
+    const keys = { left: false, right: false, attack: false, grab: false };
+
+    window.addEventListener('keydown', (e) => {
+      sound.init();
+      // Spacebar or Enter on End Screens triggers Play Again!
+      if (gameState === 'GAMEOVER' || gameState === 'VICTORY') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          startNewGame();
+          return;
+        }
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+      if (e.key === 'ArrowUp' || e.key === ' ' || e.key === 'w' || e.key === 'W') {
+        if (!keys.attack) {
+          triggerKittyCatch(); // Spacebar handles both CATCH & THROW!
+        }
+        keys.attack = true;
+      }
+      if (e.key === 'b' || e.key === 'B') {
+        triggerKittyCatch();
+      }
+      if (e.key === 't' || e.key === 'T') {
+        triggerKittyTailWhip();
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        sound.muted = !sound.muted;
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+      if (e.key === 'ArrowUp' || e.key === ' ' || e.key === 'w' || e.key === 'W') keys.attack = false;
+    });
+
+    // --- FULL TOUCHSCREEN CONTROLS SYSTEM ---
+    // Press & hold anywhere: Cat moves in that direction!
+    // Tap screen: Considered like pressing the space bar!
+    const touchState = {
+      isHolding: false,
+      targetCanvasX: null,
+      startX: 0,
+      startY: 0,
+      startTime: 0,
+      hasMoved: false,
+      lastTouchTime: 0
+    };
+
+    function getCanvasTouchX(clientX) {
+      const rect = canvas.getBoundingClientRect();
+      return (clientX - rect.left) * (canvas.width / rect.width);
+    }
+
+    function onScreenTouchStart(clientX, clientY) {
+      sound.init();
+      tryLockLandscape();
+      touchState.startX = clientX;
+      touchState.startY = clientY;
+      touchState.startTime = Date.now();
+      touchState.hasMoved = false;
+      touchState.isHolding = true;
+      touchState.targetCanvasX = getCanvasTouchX(clientX);
+      touchState.lastTouchTime = Date.now();
+    }
+
+    function onScreenTouchMove(clientX, clientY) {
+      if (!touchState.isHolding) return;
+      touchState.targetCanvasX = getCanvasTouchX(clientX);
+      const dist = Math.hypot(clientX - touchState.startX, clientY - touchState.startY);
+      if (dist > 20) {
+        touchState.hasMoved = true;
+      }
+      touchState.lastTouchTime = Date.now();
+    }
+
+    let lastTapTime = 0;
+    let singleTapTimeout = null;
+
+    function onScreenTouchEnd(clientX, clientY) {
+      if (!touchState.isHolding) return;
+      const duration = Date.now() - touchState.startTime;
+      const dist = Math.hypot(clientX - touchState.startX, clientY - touchState.startY);
+
+      touchState.isHolding = false;
+      touchState.targetCanvasX = null;
+      keys.left = false;
+      keys.right = false;
+
+      // Tap detection: short duration & small distance moved
+      if (duration < 320 && dist < 30) {
+        if (gameState === 'TITLE' || gameState === 'GAMEOVER' || gameState === 'VICTORY') {
+          startNewGame();
+          return;
+        }
+
+        if (gameState === 'PLAYING') {
+          const now = Date.now();
+          const timeSinceLastTap = now - lastTapTime;
+
+          if (timeSinceLastTap < 360 && timeSinceLastTap > 30) {
+            // DOUBLE TAP DETECTED! Trigger Kitty's Spin Tail Whip!
+            lastTapTime = 0;
+            if (singleTapTimeout) {
+              clearTimeout(singleTapTimeout);
+              singleTapTimeout = null;
+            }
+            triggerKittyTailWhip();
+          } else {
+            // Potential single tap: spacebar action (throw fish if holding fish)
+            lastTapTime = now;
+            if (singleTapTimeout) clearTimeout(singleTapTimeout);
+            singleTapTimeout = setTimeout(() => {
+              if (gameState === 'PLAYING') {
+                triggerKittyCatch();
+              }
+              singleTapTimeout = null;
+            }, 230);
+          }
+        }
+      }
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (e.touches.length > 0) {
+        const t = e.touches[0];
+        onScreenTouchStart(t.clientX, t.clientY);
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (touchState.isHolding && e.touches.length > 0) {
+        const t = e.touches[0];
+        onScreenTouchMove(t.clientX, t.clientY);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+      if (touchState.isHolding) {
+        const t = (e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0] : { clientX: touchState.startX, clientY: touchState.startY };
+        onScreenTouchEnd(t.clientX, t.clientY);
+      }
+    });
+
+    window.addEventListener('touchcancel', () => {
+      touchState.isHolding = false;
+      touchState.targetCanvasX = null;
+      keys.left = false;
+      keys.right = false;
+    });
+
+    // Also support mouse clicks/drags on canvas
+    canvas.addEventListener('mousedown', (e) => {
+      if (Date.now() - touchState.lastTouchTime < 500) return;
+      if (e.button !== 0) return;
+      onScreenTouchStart(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (touchState.isHolding && Date.now() - touchState.lastTouchTime > 500) {
+        onScreenTouchMove(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (touchState.isHolding && Date.now() - touchState.lastTouchTime > 500) {
+        onScreenTouchEnd(e.clientX, e.clientY);
+      }
+    });
+
+    // Touch controls buttons (optional bottom bar fallback)
+    const btnLeft = document.getElementById('btn-left');
+    if (btnLeft) {
+      btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; sound.init(); });
+      btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
+    }
+    const btnRight = document.getElementById('btn-right');
+    if (btnRight) {
+      btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; sound.init(); });
+      btnRight.addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
+    }
+    const btnAttack = document.getElementById('btn-attack');
+    if (btnAttack) {
+      btnAttack.addEventListener('touchstart', (e) => { e.preventDefault(); triggerKittyCatch(); sound.init(); });
+    }
+    const btnTailWhip = document.getElementById('btn-tailwhip');
+    if (btnTailWhip) {
+      btnTailWhip.addEventListener('touchstart', (e) => { e.preventDefault(); sound.init(); triggerKittyTailWhip(); });
+      btnTailWhip.addEventListener('click', (e) => { sound.init(); triggerKittyTailWhip(); });
+    }
+
+    // Orientation lock disabled for portrait mode priority
+    function tryLockLandscape() {}
+
+    const dismissRotateBtn = document.getElementById('dismiss-rotate-btn');
+    if (dismissRotateBtn) {
+      dismissRotateBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.body.classList.add('portrait-dismissed');
+        tryLockLandscape();
+      });
+    }
+
+    // When the device enters landscape, reset portrait-dismissed so it's ready if rotated back
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > window.innerHeight) {
+        document.body.classList.remove('portrait-dismissed');
+      }
+    });
+
+    if (screen.orientation) {
+      screen.orientation.addEventListener('change', () => {
+        if (screen.orientation.type && screen.orientation.type.includes('landscape')) {
+          document.body.classList.remove('portrait-dismissed');
+        }
+      });
+    }
+
+    // Overlay Buttons & Tap-anywhere on Overlay to Start/Restart (like spacebar)
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) startBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
+    const restartBtn = document.getElementById('restart-btn');
+    if (restartBtn) restartBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
+    const victoryBtn = document.getElementById('victory-btn');
+    if (victoryBtn) victoryBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
+
+    document.querySelectorAll('.overlay').forEach(overlay => {
+      overlay.addEventListener('click', (e) => {
+        if (e.target && (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('.card'))) return;
+        sound.init();
+        tryLockLandscape();
+        if (gameState === 'TITLE' || gameState === 'GAMEOVER' || gameState === 'VICTORY') {
+          startNewGame();
+        }
+      });
+    });
+
+    // Unlock audio context on any first user gesture (pointerdown or keydown)
+    const unlockAudio = () => {
+      sound.init();
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio, { passive: true });
+
+    // Spawn Floating Cat & Rat Emojis along upper sky & lower margins
+    function spawnTitleFloatingEmojis() {
+      const titleOverlay = document.getElementById('title-overlay');
+      if (!titleOverlay) return;
+
+      const emojis = ['🐱', '🐭', '🐱', '🐭', '🐱', '🐭'];
+      for (let i = 0; i < 10; i++) {
+        const span = document.createElement('div');
+        span.className = 'floating-emoji';
+        span.innerText = emojis[i % emojis.length];
+        // Float across top margin (4%-20%) and bottom margin (80%-92%) to avoid center card
+        const isTop = i % 2 === 0;
+        span.style.top = isTop ? (4 + (i * 3) % 16) + '%' : (80 + (i * 3) % 12) + '%';
+        span.style.animationDuration = (8 + (i % 4) * 2.5) + 's';
+        span.style.animationDelay = (i * 0.85) + 's';
+        span.style.fontSize = (2.0 + (i % 3) * 0.5) + 'rem';
+        titleOverlay.appendChild(span);
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', spawnTitleFloatingEmojis);
+    } else {
+      spawnTitleFloatingEmojis();
+    }
+
+    // --- LEVEL GENERATION (RESPONSIVELY SCALED ARENA) ---
+    function generateLevel() {
+      buildings = [];
+      heavyProjectiles = [];
+      skyDrops = [];
+      particles = [];
+      tanks = [];
+      helicopters = [];
+      recentDestroys = [];
+      kitty.carriedItem = null;
+      rat.carriedItem = null;
+
+      updateDimensions();
+
+      const colors = ['#7f8c8d', '#d35400', '#c0392b', '#8e44ad', '#2c3e50', '#b2bec3', '#95a5a6'];
+
+      // 2. Generate Left Turf Buildings (For Cat)
+      const numPerSide = canvas.width < 600 ? 2 : 3;
+      const leftSpace = moatX - 20;
+      const leftStep = leftSpace / numPerSide;
+      for (let i = 0; i < numPerSide; i++) {
+        const width = Math.max(32, Math.min(130 * gameScale, Math.floor(leftStep * 0.72)));
+        const floorsCount = 3 + Math.floor(Math.random() * 3);
+        const building = {
+          id: i,
+          x: Math.floor(10 + i * leftStep),
+          width: width,
+          floorsCount: floorsCount,
+          totalFloors: floorsCount,
+          floorHeight: Math.round(Math.max(22, 45 * gameScale)),
+          color: colors[i % colors.length],
+          floorHp: 2,
+          windows: []
+        };
+        buildings.push(building);
+      }
+
+      // 3. Generate Right Turf Buildings (For Rat)
+      const rightStart = moatX + moatWidth + 10;
+      const rightSpace = canvas.width - rightStart - 10;
+      const rightStep = rightSpace / numPerSide;
+      for (let i = 0; i < numPerSide; i++) {
+        const width = Math.max(32, Math.min(130 * gameScale, Math.floor(rightStep * 0.72)));
+        const floorsCount = 3 + Math.floor(Math.random() * 3);
+        const building = {
+          id: numPerSide + i,
+          x: Math.floor(rightStart + i * rightStep),
+          width: width,
+          floorsCount: floorsCount,
+          totalFloors: floorsCount,
+          floorHeight: Math.round(Math.max(22, 45 * gameScale)),
+          color: colors[(numPerSide + i) % colors.length],
+          floorHp: 2,
+          windows: []
+        };
+        buildings.push(building);
+      }
+
+      // 4. Starting Positions & Direction
+      kitty.x = Math.max(10, Math.floor(moatX * 0.08));
+      kitty.direction = 1;
+
+      rat.x = Math.floor(moatX + moatWidth + (canvas.width - (moatX + moatWidth) - rat.width) * 0.5);
+      rat.direction = -1;
+      rat.cheeseMeter = 100;
+
+      cameraX = 0; // Fixed centered screen
+
+      // Spawn initial sky drops for both Cat (Giant Fish) and Mouse (Giant Cheese)!
+      spawnSkyDrop('fish');
+      spawnSkyDrop('cheese');
+    }
+
+    // --- SKY DROP SPAWNING & UPDATE SYSTEM ---
+    function spawnSkyDrop(type) {
+      if (type === 'fish') {
+        if (kitty.carriedItem === 'fish' || skyDrops.some(d => d.type === 'fish')) return;
+        const minX = Math.max(30, 60 * gameScale);
+        const maxX = Math.max(minX + 40, moatX - 60 * gameScale);
+        const rx = minX + Math.random() * (maxX - minX);
+        skyDrops.push({
+          type: 'fish',
+          x: rx,
+          y: -80 * gameScale,
+          targetY: groundY,
+          fallSpeed: Math.max(1.6, (2.2 + Math.random() * 0.6) * gameScale),
+          swayTimer: Math.random() * Math.PI * 2,
+          bounceTimer: Math.random() * Math.PI * 2
+        });
+      } else if (type === 'cheese') {
+        if (rat.carriedItem === 'cheese' || skyDrops.some(d => d.type === 'cheese')) return;
+        const minX = moatX + moatWidth + 60 * gameScale;
+        const maxX = canvas.width - Math.max(30, 70 * gameScale);
+        const rx = minX + Math.random() * (maxX - minX);
+        skyDrops.push({
+          type: 'cheese',
+          x: rx,
+          y: -80 * gameScale,
+          targetY: groundY,
+          fallSpeed: Math.max(1.8, (2.6 + Math.random() * 0.4) * gameScale),
+          swayTimer: Math.random() * Math.PI * 2,
+          bounceTimer: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    function checkFishKittyCollision() {
+      if (gameState !== 'PLAYING' || kitty.carriedItem) return false;
+
+      const kittyCenterX = kitty.x + kitty.width / 2;
+      const kittyGroundOffset = kitty.height * 0.22;
+      const kittyCenterY = groundY - kitty.height / 2 + kittyGroundOffset;
+      const catTop = kittyCenterY - kitty.height * 0.58;
+      const catBottom = groundY + 15;
+
+      for (let i = skyDrops.length - 1; i >= 0; i--) {
+        const drop = skyDrops[i];
+        if (drop.type === 'fish') {
+          // If the fish touches the cat anywhere (head, body, hands, belly, or tail)
+          if (Math.abs(kittyCenterX - drop.x) < kitty.width * 0.54 && drop.y >= catTop && drop.y <= catBottom) {
+            kitty.carriedItem = 'fish';
+            kitty.napMeter = Math.min(100, kitty.napMeter + 20);
+            kitty.state = 'happy';
+            kitty.stateTimer = 20;
+            addScore(30);
+            sound.playEat();
+            createBubblePopEffect(drop.x, drop.y);
+            createDustDebris(drop.x, drop.y, '#38bdf8', 12);
+            skyDrops.splice(i, 1);
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function updateSkyDrops() {
+      // Periodically trigger fresh sky drops if none active
+      if (Math.random() < 0.02) {
+        if (!kitty.carriedItem && !skyDrops.some(d => d.type === 'fish')) spawnSkyDrop('fish');
+        if (!rat.carriedItem && !skyDrops.some(d => d.type === 'cheese')) spawnSkyDrop('cheese');
+      }
+
+      // Check immediate touch before movement
+      checkFishKittyCollision();
+
+      for (let i = skyDrops.length - 1; i >= 0; i--) {
+        const drop = skyDrops[i];
+        drop.swayTimer += 0.04;
+        drop.bounceTimer += 0.05;
+
+        if (drop.y < drop.targetY) {
+          drop.y += drop.fallSpeed;
+          drop.x += Math.sin(drop.swayTimer) * (0.7 * gameScale);
+        }
+
+        // Check if fish touches the cat (head, horns, body, hands, tail) -> Catch!
+        if (drop.type === 'fish' && !kitty.carriedItem) {
+          const kittyCenterX = kitty.x + kitty.width / 2;
+          const kittyGroundOffset = kitty.height * 0.22;
+          const kittyCenterY = groundY - kitty.height / 2 + kittyGroundOffset;
+          const catTop = kittyCenterY - kitty.height * 0.58;
+          const catBottom = groundY + 15;
+
+          if (Math.abs(kittyCenterX - drop.x) < kitty.width * 0.54 && drop.y >= catTop && drop.y <= catBottom) {
+            kitty.carriedItem = 'fish';
+            kitty.napMeter = Math.min(100, kitty.napMeter + 20);
+            kitty.state = 'happy';
+            kitty.stateTimer = 20;
+            addScore(30);
+            sound.playEat();
+            createBubblePopEffect(drop.x, drop.y);
+            createDustDebris(drop.x, drop.y, '#38bdf8', 12);
+            skyDrops.splice(i, 1);
+            continue;
+          }
+        }
+
+        // When the cheese falls to the same level as the rat, the rat will always instantly get the cheese!
+        if (drop.type === 'cheese' && !rat.carriedItem) {
+          const mouseGroundOffset = rat.height * 0.20;
+          const mouseCenterY = groundY - rat.height / 2 + mouseGroundOffset;
+          const ratLevelY = mouseCenterY - rat.height * 0.16;
+
+          // When the cheese reaches the rat's level, rat instantly gets the cheese!
+          if (drop.y >= ratLevelY) {
+            rat.carriedItem = 'cheese';
+            rat.attackCooldown = 50;
+            rat.state = 'happy';
+            rat.stateTimer = 22;
+            sound.playEat();
+            createBubblePopEffect(drop.x, drop.y);
+            createDustDebris(drop.x, drop.y, '#feca57', 12);
+            skyDrops.splice(i, 1);
+            continue;
+          }
+        }
+
+        // Only after checking if characters caught/hit it: handle ground landing
+        if (drop.y >= drop.targetY) {
+          if (drop.type === 'fish') {
+            createDustDebris(drop.x, drop.y, '#38bdf8', 12);
+            skyDrops.splice(i, 1);
+            setTimeout(() => spawnSkyDrop('fish'), 1500);
+            continue;
+          } else if (drop.type === 'cheese') {
+            createDustDebris(drop.x, drop.y, '#feca57', 12);
+            skyDrops.splice(i, 1);
+            setTimeout(() => spawnSkyDrop('cheese'), 1500);
+            continue;
+          }
+        }
+      }
+    }
+
+    // --- CAT & MOUSE CATCH & THROW ACTIONS ---
+    function triggerKittyCatch() {
+      if (gameState !== 'PLAYING') return;
+
+      // If the space bar is pressed before the cat is holding a fish, then nothing should happen!
+      if (kitty.carriedItem !== 'fish') {
+        return;
+      }
+
+      // Holding fish -> Spacebar throws it!
+      triggerKittyFishThrow();
+    }
+
+    function triggerKittyTailWhip() {
+      if (gameState !== 'PLAYING') return;
+      if (kitty.tailWhipCooldown > 0) return;
+
+      kitty.tailWhipCooldown = 28; // brief cooldown
+      kitty.state = 'tailwhip';
+      kitty.stateTimer = 26; // 26 frames of rapid 720-degree spin
+      sound.playWhip();
+
+      const catCenter = kitty.x + kitty.width / 2;
+      const catY = groundY - kitty.height * 0.35;
+      createArcEffect(catCenter, catY, kitty.direction);
+      createDustDebris(catCenter, groundY - 10, '#38bdf8', 18);
+      createDustDebris(catCenter, groundY - 10, '#feca57', 12);
+      createShockwave(catCenter, groundY - kitty.height * 0.28);
+
+      particles.push({
+        type: 'text',
+        x: catCenter - 65 * gameScale,
+        y: groundY - 260 * gameScale,
+        vx: 0,
+        vy: -3.0,
+        text: '🌀 TAIL WHIP! 🐾',
+        color: '#38bdf8',
+        life: 32
+      });
+    }
+
+    function triggerRatTailWhip() {
+      if (gameState !== 'PLAYING') return;
+      if (rat.cheeseMeter <= 0) return;
+      if (rat.tailWhipCooldown > 0) return;
+
+      rat.tailWhipCooldown = 28; // Rapid cooldown matching 26-frame spin so Rat can whip repeatedly!
+      rat.state = 'tailwhip';
+      rat.stateTimer = 26; // 26 frames of rapid 720-degree spin
+      sound.playWhip();
+
+      const mouseCenter = rat.x + rat.width / 2;
+      const mouseCenterY = groundY - rat.height * 0.35;
+      createArcEffect(mouseCenter, mouseCenterY, rat.direction);
+      createDustDebris(mouseCenter, groundY - 10, '#ff4757', 20); // RED dust debris for Rat!
+      createDustDebris(mouseCenter, groundY - 10, '#ff6b81', 14);
+      createShockwave(mouseCenter, groundY - rat.height * 0.28);
+
+      particles.push({
+        type: 'text',
+        x: mouseCenter - 65 * gameScale,
+        y: groundY - 260 * gameScale,
+        vx: 0,
+        vy: -3.0,
+        text: '🌀 REX TAIL WHIP! 🐾',
+        color: '#ff4757', // RED text for Rat!
+        life: 32
+      });
+    }
+
+    function triggerKittyFishThrow() {
+      if (gameState !== 'PLAYING') return;
+
+      if (kitty.carriedItem !== 'fish') {
+        sound.playHurt();
+        return;
+      }
+
+      // THROW THE CARRIED GIANT FISH!
+      kitty.carriedItem = null;
+      kitty.swipeCooldown = 30;
+      kitty.state = 'happy';
+      kitty.stateTimer = 18;
+      sound.playSwipe();
+
+      // Target position on Mouse's turf (Right bank)
+      const targetX = rat.x + rat.width / 2 + (Math.random() - 0.5) * (120 * gameScale);
+      const startX = kitty.x + kitty.width / 2;
+      const startY = groundY - 300 * gameScale;
+      const targetY = groundY - 5;
+
+      heavyProjectiles.push({
+        type: 'fish',
+        startX: startX,
+        startY: startY,
+        targetX: targetX,
+        targetY: targetY,
+        x: startX,
+        y: startY,
+        maxHeight: Math.min(groundY * 0.75, 420 * gameScale),
+        progress: 0,
+        totalFrames: 72,
+        thrower: 'kitty',
+        rotation: 0,
+        rotSpeed: 0.12
+      });
+
+      createArcEffect(startX, startY, 1);
+      // Spawn next fish drop after throw
+      setTimeout(() => spawnSkyDrop('fish'), 3000);
+    }
+
+    function triggerRatCheeseThrow() {
+      if (rat.cheeseMeter <= 0) return;
+
+      rat.carriedItem = null;
+      rat.attackCooldown = 120; // Cooldown before next cheese catch/throw
+      rat.state = 'attack';
+      rat.stateTimer = 20;
+
+      // Target position on Kitty's turf (Left bank)
+      const targetX = kitty.x + kitty.width / 2 + (Math.random() - 0.5) * (140 * gameScale);
+      const startX = rat.x + rat.width / 2 + (rat.direction === -1 ? -35 * gameScale : 35 * gameScale);
+      const groundOffset = rat.height * 0.20;
+      const cy = groundY - rat.height / 2 + groundOffset;
+      const startY = cy + 45 * gameScale;
+      const targetY = groundY - 5;
+
+      heavyProjectiles.push({
+        type: 'cheese',
+        startX: startX,
+        startY: startY,
+        targetX: targetX,
+        targetY: targetY,
+        x: startX,
+        y: startY,
+        maxHeight: Math.min(groundY * 0.75, 450 * gameScale),
+        progress: 0,
+        totalFrames: 75,
+        thrower: 'rat',
+        rotation: 0,
+        rotSpeed: -0.1
+      });
+
+      sound.playCrumble();
+      // Spawn next cheese drop after throw
+      setTimeout(() => spawnSkyDrop('cheese'), 3000);
+    }
+
+    function updateHeavyProjectiles() {
+      for (let i = heavyProjectiles.length - 1; i >= 0; i--) {
+        const p = heavyProjectiles[i];
+        p.progress += 1 / p.totalFrames;
+        p.rotation += p.rotSpeed;
+
+        const t = Math.min(1.0, p.progress);
+        p.x = (1 - t) * p.startX + t * p.targetX;
+        const arcY = 4 * p.maxHeight * t * (1 - t);
+        p.y = (1 - t) * p.startY + t * p.targetY - arcY;
+
+        // 1. Airborne Direct Impact Check: Fish or Deflected Cheese hits Ratty Rex!
+        if (p.thrower === 'kitty' && (p.type === 'fish' || p.type === 'cheese') && p.progress > 0.45 && p.progress < 1.0) {
+          const mouseCenter = rat.x + rat.width / 2;
+          const mouseGroundOffset = rat.height * 0.20;
+          const mouseCenterY = groundY - rat.height / 2 + mouseGroundOffset;
+          if (Math.abs(p.x - mouseCenter) < 270 * gameScale && p.y >= mouseCenterY - 240 * gameScale) {
+            if (rat.state === 'tailwhip' && !p.superDeflect) {
+              // RATTY REX TAIL WHIP DEFLECTION! Deflects projectile back towards Kitty! (RED EFFECTS)
+              p.thrower = 'rat';
+              p.startX = p.x;
+              p.startY = p.y;
+              p.targetX = kitty.x + kitty.width / 2 + (Math.random() - 0.5) * (70 * gameScale);
+              p.targetY = groundY - 5;
+              p.progress = 0;
+              p.totalFrames = 48; // Zippy return arc!
+              p.maxHeight = Math.min(groundY * 0.7, 390 * gameScale);
+              p.rotSpeed = -0.35;
+              kitty.tailWhipCooldown = 0; // Ready for Lizzy Kitty to return the volley!
+
+              sound.playWhip();
+              sound.playCollapse();
+              screenShake = 16;
+              createShockwave(p.x, p.y);
+              createDustDebris(p.x, p.y, '#ff4757', 30); // RED dust!
+              createDustDebris(p.x, p.y, '#ff6b81', 25);
+              particles.push({
+                type: 'text',
+                x: mouseCenter - 75 * gameScale,
+                y: groundY - 280 * gameScale,
+                vx: 0,
+                vy: -3.5,
+                text: '⚡ REX TAIL WHIP DEFLECT!! 🔴💨',
+                color: '#ff4757', // RED text for Rat!
+                life: 48
+              });
+              continue;
+            } else {
+              sound.playCollapse();
+              screenShake = p.superDeflect ? 22 : 15;
+              createDustDebris(p.x, p.y, p.type === 'fish' ? '#38bdf8' : '#feca57', 25);
+              createDustDebris(p.x, p.y, '#ff4757', 20);
+              createShockwave(p.x, p.y);
+              const dmg = p.superDeflect ? 35 : (p.type === 'cheese' ? 30 : 25);
+              rat.cheeseMeter -= dmg;
+              rat.vx = 22 * gameScale; // Scaled knockback recoil
+              rat.state = 'hurt';
+              rat.stateTimer = 55; // Clearly visible hurt duration
+              rat.carriedItem = null; // Drop cheese on hit!
+              const minRatX = moatX + moatWidth - Math.round(rat.width * 0.15);
+              const maxRatX = canvas.width - Math.round(rat.width * 0.70);
+              rat.targetX = Math.min(maxRatX, rat.x + 140 * gameScale);
+              rat.x = Math.max(minRatX, Math.min(rat.x, maxRatX));
+              sound.playHurt();
+              createStarsEffect(mouseCenter, groundY - 280 * gameScale);
+              createShockwave(mouseCenter, groundY - 170 * gameScale);
+              particles.push({
+                type: 'text',
+                x: mouseCenter - 75 * gameScale,
+                y: groundY - 310 * gameScale,
+                vx: 0,
+                vy: -3.2,
+                text: p.superDeflect ? '🔥 UNSTOPPABLE DEFLECT!! -35 HP 💥' : (p.type === 'cheese' ? '💥 CHEESE SMACK!! -30 HP' : '💥 SQUEAK!! -25 HP'),
+                color: p.superDeflect ? '#ffd700' : '#ff4757',
+                life: 48
+              });
+
+              if (rat.cheeseMeter <= 0) {
+                rat.cheeseMeter = 0;
+                rat.state = 'defeated';
+                rat.defeatTimer = 85;
+                rat.x = Math.max(minRatX, Math.min(rat.x, maxRatX));
+              }
+              heavyProjectiles.splice(i, 1);
+              continue;
+            }
+          }
+        }
+
+        // 2. Airborne Tail Whip Deflection or Hit Check: Projectile thrown by Rat flying towards Kitty!
+        if (p.thrower === 'rat' && (p.type === 'cheese' || p.type === 'fish') && p.progress > 0.35 && p.progress < 1.0) {
+          const catCenter = kitty.x + kitty.width / 2;
+          const catGroundOffset = kitty.height * 0.22;
+          const catCenterY = groundY - kitty.height / 2 + catGroundOffset;
+          if (Math.abs(p.x - catCenter) < 220 * gameScale && p.y >= catCenterY - 210 * gameScale) {
+            if (kitty.state === 'tailwhip') {
+              // KITTY TAIL WHIP DEFLECTION! Increment Deflect Streak!
+              kitty.deflectStreak = (kitty.deflectStreak || 0) + 1;
+              const isSuper = kitty.deflectStreak >= 3;
+              p.superDeflect = isSuper;
+              p.thrower = 'kitty';
+              p.startX = p.x;
+              p.startY = p.y;
+              p.targetX = rat.x + rat.width / 2 + (Math.random() - 0.5) * (70 * gameScale);
+              p.targetY = groundY - 5;
+              p.progress = 0;
+              p.totalFrames = 48; // Zippy counter-attack arc!
+              p.maxHeight = Math.min(groundY * 0.7, 390 * gameScale);
+              p.rotSpeed = 0.35; // Rapid spin!
+              rat.tailWhipCooldown = 0; // Ready for Ratty Rex to return the volley again!
+
+              sound.playWhip();
+              sound.playCollapse();
+              screenShake = isSuper ? 20 : 16;
+              createShockwave(p.x, p.y);
+              createDustDebris(p.x, p.y, p.type === 'fish' ? '#38bdf8' : '#feca57', 30);
+              createDustDebris(p.x, p.y, '#38bdf8', 25);
+
+              let streakMsg = `⚡ DEFLECT ${kitty.deflectStreak}/3! 🐾`;
+              let streakColor = '#38bdf8';
+              if (kitty.deflectStreak === 2) streakColor = '#feca57';
+              else if (isSuper) {
+                streakMsg = `🔥 UNSTOPPABLE DEFLECT 3/3!! 💥`;
+                streakColor = '#ffd700';
+              }
+
+              particles.push({
+                type: 'text',
+                x: catCenter - 85 * gameScale,
+                y: groundY - 280 * gameScale,
+                vx: 0,
+                vy: -3.5,
+                text: streakMsg,
+                color: streakColor,
+                life: 50
+              });
+              continue;
+            } else {
+              // Direct hit on Kitty -> RESET DEFLECT STREAK!
+              kitty.deflectStreak = 0;
+              const dmg = p.type === 'fish' ? 25 : 20;
+              kitty.napMeter -= dmg;
+              kitty.vx = -16 * gameScale;
+              kitty.state = 'hurt';
+              kitty.stateTimer = 42;
+              sound.playCollapse();
+              sound.playHurt();
+              screenShake = 12;
+              createDustDebris(p.x, p.y, p.type === 'fish' ? '#38bdf8' : '#feca57', 25);
+              createStarsEffect(catCenter, groundY - 260 * gameScale);
+              createShockwave(catCenter, groundY - 150 * gameScale);
+              particles.push({
+                type: 'text',
+                x: catCenter - 55 * gameScale,
+                y: groundY - 290 * gameScale,
+                vx: 0,
+                vy: -3.0,
+                text: '💔 STREAK RESET! -' + dmg + ' HP',
+                color: '#ff4757',
+                life: 40
+              });
+              heavyProjectiles.splice(i, 1);
+              continue;
+            }
+          }
+        }
+
+        // 3. Check Ground Impact
+        if (p.progress >= 1.0) {
+          p.x = p.targetX;
+          p.y = p.targetY;
+
+          sound.playCollapse();
+          createDustDebris(p.targetX, p.targetY, p.type === 'fish' ? '#38bdf8' : '#feca57', 25);
+          createShockwave(p.targetX, p.targetY);
+
+          if (p.thrower === 'kitty' && (p.type === 'fish' || p.type === 'cheese')) {
+            // Check impact on Rex (Triggers Hit Reaction or Ground Deflect!)
+            const mouseCenter = rat.x + rat.width / 2;
+            if (Math.abs(p.targetX - mouseCenter) < 310 * gameScale || Math.abs(p.x - mouseCenter) < 310 * gameScale) {
+              if (rat.state === 'tailwhip' && !p.superDeflect) {
+                // Ground deflection by Ratty Rex! (RED EFFECTS)
+                p.thrower = 'rat';
+                p.startX = p.targetX;
+                p.startY = groundY - 5;
+                p.targetX = kitty.x + kitty.width / 2 + (Math.random() - 0.5) * (70 * gameScale);
+                p.targetY = groundY - 5;
+                p.progress = 0;
+                p.totalFrames = 48;
+                p.maxHeight = Math.min(groundY * 0.7, 390 * gameScale);
+                p.rotSpeed = -0.35;
+                kitty.tailWhipCooldown = 0; // Ready for Lizzy Kitty to return the volley!
+                sound.playWhip();
+                screenShake = 16;
+                createShockwave(mouseCenter, groundY - 10);
+                createDustDebris(mouseCenter, groundY - 10, '#ff4757', 30);
+                particles.push({
+                  type: 'text',
+                  x: mouseCenter - 75 * gameScale,
+                  y: groundY - 280 * gameScale,
+                  vx: 0,
+                  vy: -3.5,
+                  text: '⚡ REX TAIL WHIP DEFLECTION!! 🔴💨',
+                  color: '#ff4757',
+                  life: 48
+                });
+                continue;
+              } else {
+                sound.playCollapse();
+                screenShake = p.superDeflect ? 22 : 14;
+                const dmg = p.superDeflect ? 35 : (p.type === 'cheese' ? 30 : 25);
+                rat.cheeseMeter -= dmg;
+                rat.vx = 22 * gameScale; // Scaled knockback
+                rat.state = 'hurt';
+                rat.stateTimer = 55; // Dramatic hurt reaction
+                rat.carriedItem = null;
+                const minRatX = moatX + moatWidth - Math.round(rat.width * 0.15);
+                const maxRatX = canvas.width - Math.round(rat.width * 0.70);
+                rat.targetX = Math.min(maxRatX, rat.x + 140 * gameScale);
+                rat.x = Math.max(minRatX, Math.min(rat.x, maxRatX));
+                sound.playHurt();
+                createStarsEffect(mouseCenter, groundY - 280 * gameScale);
+                createShockwave(mouseCenter, groundY - 170 * gameScale);
+                createDustDebris(mouseCenter, groundY - 120 * gameScale, '#ff4757', 25);
+                particles.push({
+                  type: 'text',
+                  x: mouseCenter - 75 * gameScale,
+                  y: groundY - 310 * gameScale,
+                  vx: 0,
+                  vy: -3.2,
+                  text: p.superDeflect ? '🔥 UNSTOPPABLE DEFLECT!! -35 HP 💥' : (p.type === 'cheese' ? '💥 CHEESE SMACK!! -30 HP' : '💥 SQUEAK!! -25 HP'),
+                  color: p.superDeflect ? '#ffd700' : '#ff4757',
+                  life: 48
+                });
+
+                if (rat.cheeseMeter <= 0) {
+                  rat.cheeseMeter = 0;
+                  rat.state = 'defeated';
+                  rat.defeatTimer = 85;
+                  rat.x = Math.max(minRatX, Math.min(rat.x, maxRatX));
+                }
+              }
+            }
+          } else if (p.thrower === 'rat') {
+            const catCenter = kitty.x + kitty.width / 2;
+            if (Math.abs(p.targetX - catCenter) < 190 * gameScale) {
+              if (kitty.state === 'tailwhip') {
+                // Deflect from landing spot if Kitty is spinning! (INCREMENT STREAK)
+                kitty.deflectStreak = (kitty.deflectStreak || 0) + 1;
+                const isSuper = kitty.deflectStreak >= 3;
+                p.superDeflect = isSuper;
+                p.thrower = 'kitty';
+                p.startX = p.targetX;
+                p.startY = groundY - 5;
+                p.targetX = rat.x + rat.width / 2 + (Math.random() - 0.5) * (70 * gameScale);
+                p.targetY = groundY - 5;
+                p.progress = 0;
+                p.totalFrames = 48;
+                p.maxHeight = Math.min(groundY * 0.7, 390 * gameScale);
+                p.rotSpeed = 0.35;
+                rat.tailWhipCooldown = 0; // Ready for Ratty Rex to return the volley again!
+                sound.playWhip();
+                screenShake = isSuper ? 20 : 16;
+                createShockwave(catCenter, groundY - 10);
+                createDustDebris(catCenter, groundY - 10, p.type === 'fish' ? '#38bdf8' : '#feca57', 30);
+
+                let streakMsg = `⚡ DEFLECT ${kitty.deflectStreak}/3! 🐾`;
+                let streakColor = '#38bdf8';
+                if (kitty.deflectStreak === 2) streakColor = '#feca57';
+                else if (isSuper) {
+                  streakMsg = `🔥 UNSTOPPABLE DEFLECT 3/3!! 💥`;
+                  streakColor = '#ffd700';
+                }
+
+                particles.push({
+                  type: 'text',
+                  x: catCenter - 85 * gameScale,
+                  y: groundY - 280 * gameScale,
+                  vx: 0,
+                  vy: -3.5,
+                  text: streakMsg,
+                  color: streakColor,
+                  life: 50
+                });
+                continue;
+              } else {
+                // Direct ground hit on Kitty -> RESET DEFLECT STREAK!
+                kitty.deflectStreak = 0;
+                const dmg = p.type === 'fish' ? 25 : 20;
+                kitty.napMeter -= dmg;
+                kitty.vx = -14 * gameScale;
+                kitty.state = 'hurt';
+                kitty.stateTimer = 40;
+                sound.playHurt();
+                createStarsEffect(catCenter, groundY - 270 * gameScale);
+                particles.push({
+                  type: 'text',
+                  x: catCenter - 55 * gameScale,
+                  y: groundY - 290 * gameScale,
+                  vx: 0,
+                  vy: -3.0,
+                  text: '💔 STREAK RESET!',
+                  color: '#ff4757',
+                  life: 40
+                });
+              }
+            }
+          }
+
+          heavyProjectiles.splice(i, 1);
+        }
+      }
+    }
+
+    // --- GAME ACTIONS & COMBAT ---
+    function triggerKittyAttack() {
+      if (gameState !== 'PLAYING') return;
+      if (kitty.swipeCooldown > 0) return;
+
+      kitty.swipeCooldown = 15;
+      kitty.state = 'swipe';
+      kitty.stateTimer = 12;
+      sound.playSwipe();
+
+      const reach = 350 * gameScale;
+      const attackX = kitty.direction === 1 ? kitty.x + kitty.width / 2 : kitty.x - reach + kitty.width / 2;
+      const attackWidth = reach;
+
+      createArcEffect(attackX, groundY - 260 * gameScale, kitty.direction);
+
+      let hitBuilding = false;
+      buildings.forEach(bld => {
+        if (bld.floorsCount > 0) {
+          const bldLeft = bld.x;
+          const bldRight = bld.x + bld.width;
+          if (attackX + attackWidth >= bldLeft && attackX <= bldRight) {
+            damageBuilding(bld, 1);
+            hitBuilding = true;
+          }
+        }
+      });
+    }
+
+    function damageBuilding(bld, amount) {
+      bld.floorHp -= amount;
+      sound.playCrumble();
+
+      // Top floor position
+      const floorY = groundY - bld.floorsCount * bld.floorHeight;
+      createDustDebris(bld.x + bld.width / 2, floorY, bld.color, 8);
+
+      if (bld.floorHp <= 0) {
+        bld.floorsCount--;
+        bld.floorHp = 2;
+        addScore(10);
+        trackCombo();
+
+        // If building fully collapses
+        if (bld.floorsCount <= 0) {
+          sound.playCollapse();
+          addScore(50);
+          kitty.state = 'happy';
+          kitty.stateTimer = 30;
+          createDustDebris(bld.x + bld.width / 2, groundY, bld.color, 25);
+          createShockwave(bld.x + bld.width / 2, groundY);
+        }
+      }
+    }
+
+    function trackCombo() {
+      const now = Date.now();
+      recentDestroys.push(now);
+      recentDestroys = recentDestroys.filter(t => now - t < 2500); // within 2.5s
+
+      if (recentDestroys.length >= 3) {
+        rampageActive = true;
+        document.getElementById('combo-tag').classList.add('active');
+        setTimeout(() => {
+          rampageActive = false;
+          document.getElementById('combo-tag').classList.remove('active');
+        }, 5000);
+      }
+    }
+
+    function addScore(pts) {
+      // Score display removed for fight mode
+    }
+
+    function startNewGame() {
+      tryLockLandscape();
+      score = 0;
+      screenShake = 0;
+      rampageActive = false;
+      recentDestroys = [];
+      kitty.napMeter = 100;
+      kitty.vx = 0;
+      kitty.state = 'idle';
+      kitty.carriedItem = null;
+      kitty.tailWhipCooldown = 0;
+      rat.cheeseMeter = 100;
+      rat.vx = 0;
+      rat.state = 'idle';
+      rat.carriedItem = null;
+      rat.tailWhipCooldown = 0;
+      rat.defeatTimer = 0;
+      rat.defeatProgress = 0;
+      document.getElementById('combo-tag').classList.remove('active');
+      hideOverlays();
+      generateLevel();
+      countdownTimer = 210;
+      lastCountBeat = -1;
+      victoryTimer = 0;
+      goldConfetti = [];
+      kitty.deflectStreak = 0;
+      gameState = 'COUNTDOWN';
+    }
+
+    function hideOverlays() {
+      document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
+    }
+
+    function updateCountdown() {
+      if (countdownTimer > 0) {
+        countdownTimer--;
+
+        // Determine active beat:
+        // 210 to 151 -> 3
+        // 150 to 91  -> 2
+        // 90 to 31   -> 1
+        // 30 to 0    -> Head Knock Clash
+        let currentBeat = -1;
+        if (countdownTimer > 150) currentBeat = 3;
+        else if (countdownTimer > 90) currentBeat = 2;
+        else if (countdownTimer > 30) currentBeat = 1;
+        else currentBeat = 0;
+
+        if (currentBeat !== lastCountBeat) {
+          lastCountBeat = currentBeat;
+          if (currentBeat > 0) {
+            sound.playCountBeep(440 + (4 - currentBeat) * 120);
+          } else if (currentBeat === 0) {
+            sound.playHeadKnock();
+            screenShake = 16;
+            createShockwave(canvas.width / 2, groundY - 180 * gameScale);
+            createDustDebris(canvas.width / 2, groundY - 180 * gameScale, '#ff4757', 25);
+            createDustDebris(canvas.width / 2, groundY - 180 * gameScale, '#38bdf8', 25);
+          }
+        }
+
+        // Kitty Taunt animation on left turf
+        kitty.direction = 1;
+        const kittyTauntCycle = Math.floor(countdownTimer / 25) % 2;
+        kitty.state = kittyTauntCycle === 0 ? 'swipe' : 'happy';
+
+        if (countdownTimer % 20 === 0) {
+          const kx = kitty.x + kitty.width / 2;
+          const ky = groundY - kitty.height * 0.6;
+          particles.push({
+            type: 'text',
+            x: kx + (Math.random() - 0.5) * 60 * gameScale,
+            y: ky - 30 * gameScale,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -2.5,
+            text: Math.random() > 0.5 ? '🐾 RAWR!' : '🔥 ✨',
+            color: '#38bdf8',
+            life: 28
+          });
+          createDustDebris(kx, groundY - 10, '#38bdf8', 6);
+        }
+
+        // Rat Taunt animation on right turf
+        rat.direction = -1;
+        const ratTauntCycle = Math.floor(countdownTimer / 25 + 1) % 2;
+        rat.state = ratTauntCycle === 0 ? 'attack' : 'happy';
+
+        if (countdownTimer % 20 === 0) {
+          const rx = rat.x + rat.width / 2;
+          const ry = groundY - rat.height * 0.6;
+          particles.push({
+            type: 'text',
+            x: rx + (Math.random() - 0.5) * 60 * gameScale,
+            y: ry - 30 * gameScale,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -2.5,
+            text: Math.random() > 0.5 ? '💢 SQUEAK!' : '⚡ 🐭',
+            color: '#ff4757',
+            life: 28
+          });
+          createDustDebris(rx, groundY - 10, '#ff4757', 6);
+        }
+
+        updateParticles();
+      } else {
+        gameState = 'PLAYING';
+        kitty.state = 'idle';
+        rat.state = 'idle';
+      }
+    }
+
+    function updateVictory() {
+      victoryTimer++;
+
+      // Continually rain gold confetti from top across whole screen
+      if (Math.random() < 0.65) {
+        goldConfetti.push({
+          x: Math.random() * canvas.width,
+          y: -30 * gameScale,
+          vx: (Math.random() - 0.5) * 2,
+          vy: Math.max(1.8, (2.2 + Math.random() * 3.0) * gameScale),
+          width: Math.max(6, (8 + Math.random() * 10) * gameScale),
+          height: Math.max(10, (12 + Math.random() * 14) * gameScale),
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.15,
+          swayTimer: Math.random() * Math.PI * 2,
+          color: ['#ffd700', '#f39c12', '#ffb142', '#feca57', '#fff3a0', '#ffffff'][Math.floor(Math.random() * 6)]
+        });
+      }
+
+      // Update gold confetti physics
+      for (let i = goldConfetti.length - 1; i >= 0; i--) {
+        const c = goldConfetti[i];
+        c.swayTimer += 0.04;
+        c.x += Math.sin(c.swayTimer) * 1.5 + c.vx;
+        c.y += c.vy;
+        c.rotation += c.rotSpeed;
+
+        if (c.y > canvas.height + 40) {
+          goldConfetti.splice(i, 1);
+        }
+      }
+
+      kitty.state = 'happy';
+      kitty.direction = 1;
+
+      // After a few seconds (~2.5 seconds = 150 frames), show the Play Again button!
+      if (victoryTimer === 150) {
+        document.getElementById('victory-overlay').classList.remove('hidden');
+      }
+
+      updateParticles();
+    }
+
+    function update() {
+      if (gameState === 'COUNTDOWN') {
+        updateCountdown();
+        return;
+      }
+      if (gameState === 'VICTORY') {
+        updateVictory();
+        return;
+      }
+      if (gameState !== 'PLAYING') return;
+
+      // 1. Kittysaurus HP Check
+      if (kitty.napMeter <= 0) {
+        kitty.napMeter = 0;
+        triggerGameOver();
+      }
+
+      // Update HUD meters
+      document.getElementById('nap-pct').innerText = Math.ceil(kitty.napMeter) + '%';
+      const napFill = document.getElementById('nap-fill');
+      napFill.style.width = Math.max(0, kitty.napMeter) + '%';
+      if (kitty.napMeter < 25) napFill.classList.add('critical');
+      else napFill.classList.remove('critical');
+
+      document.getElementById('cheese-pct').innerText = Math.ceil(rat.cheeseMeter) + '%';
+      document.getElementById('cheese-fill').style.width = Math.max(0, rat.cheeseMeter) + '%';
+
+      const remainingBlds = buildings.filter(b => b.floorsCount > 0).length;
+      const bldLeftElem = document.getElementById('bld-left');
+      if (bldLeftElem) bldLeftElem.innerText = remainingBlds;
+
+      // 2. Player Movement
+      // Touchscreen Press & Hold Movement: Cat moves in the direction pressed on screen!
+      if (touchState.isHolding && touchState.targetCanvasX !== null) {
+        const kittyCenterX = kitty.x + kitty.width / 2;
+        const diff = touchState.targetCanvasX - kittyCenterX;
+        if (Math.abs(diff) > 25) {
+          if (diff > 0) {
+            keys.right = true;
+            keys.left = false;
+          } else {
+            keys.left = true;
+            keys.right = false;
+          }
+        } else {
+          keys.left = false;
+          keys.right = false;
+        }
+      }
+
+      let moveSpeed = rampageActive ? kitty.speed * 1.4 : kitty.speed;
+      if (keys.left) {
+        kitty.vx = -moveSpeed;
+        kitty.direction = -1;
+      } else if (keys.right) {
+        kitty.vx = moveSpeed;
+        kitty.direction = 1;
+      } else {
+        kitty.vx = 0;
+      }
+
+      kitty.x += kitty.vx;
+      const minKittyX = -kitty.width * 0.35;
+      const maxKittyX = moatX - kitty.width * 0.68;
+      kitty.x = Math.max(minKittyX, Math.min(kitty.x, maxKittyX));
+      checkFishKittyCollision();
+
+      if (kitty.swipeCooldown > 0) kitty.swipeCooldown--;
+      if (kitty.tailWhipCooldown > 0) kitty.tailWhipCooldown--;
+      if (kitty.stateTimer > 0) {
+        kitty.stateTimer--;
+      } else {
+        if (kitty.vx !== 0) kitty.state = 'walk';
+        else kitty.state = 'idle';
+      }
+
+      // Update Parabolic Heavy Projectiles (Giant Fish & Giant Cheese)
+      updateHeavyProjectiles();
+
+      // Update Sky Drops (Falling Giant Fish & Giant Cheese in bubbles)
+      updateSkyDrops();
+
+      // Keep camera centered (cameraX = 0)
+      cameraX = 0;
+
+      // 3. Rat AI Behavior
+      updateRatAI();
+
+      // 4. Update Hazards (Tanks & Helicopters)
+      updateHazards();
+
+      // 5. Particles
+      updateParticles();
+
+      // Win Condition Check (When Rat Rival's Cheese Meter reaches 0 -> VICTORY & PLAY AGAIN!)
+      if (rat.cheeseMeter <= 0) {
+        rat.state = 'defeated';
+        if (rat.defeatTimer === undefined || rat.defeatTimer === null || rat.defeatTimer <= 0) {
+          rat.defeatTimer = 85;
+        }
+        rat.defeatTimer--;
+        if (rat.defeatTimer <= 0) {
+          showVictoryScreen();
+        }
+      }
+    }
+
+    function updateRatAI() {
+      const minRatX = moatX + moatWidth - Math.round(rat.width * 0.15);
+      const maxRatX = canvas.width - Math.round(rat.width * 0.70);
+
+      if (rat.cheeseMeter <= 0 || rat.state === 'defeated') {
+        rat.state = 'defeated';
+        rat.vx *= 0.85;
+        rat.x += rat.vx;
+        rat.x = Math.max(minRatX, Math.min(rat.x, maxRatX));
+        return;
+      }
+
+      // Hit Reaction: If hit by a fish!
+      if (rat.state === 'hurt' && rat.stateTimer > 0) {
+        rat.stateTimer--;
+        rat.vx *= 0.85;
+        rat.x += rat.vx;
+        return;
+      }
+      if (rat.state === 'tailwhip' && rat.stateTimer > 0) {
+        rat.stateTimer--;
+        rat.vx *= 0.85;
+        rat.x += rat.vx;
+        return;
+      }
+      if (rat.stateTimer > 0) {
+        rat.stateTimer--;
+      } else if (rat.state === 'happy' || rat.state === 'attack' || rat.state === 'hurt' || rat.state === 'tailwhip') {
+        rat.state = 'idle';
+      }
+
+      if (rat.attackCooldown > 0) rat.attackCooldown--;
+      if (rat.tailWhipCooldown > 0) rat.tailWhipCooldown--;
+
+      // Rat Tail Whip AI Reaction: When an incoming projectile from Kitty gets close, Ratty Rex spins his tail!
+      // Ratty Rex knows he can tail whip repeatedly in rapid succession during multi-hit rallies!
+      if ((!rat.tailWhipCooldown || rat.tailWhipCooldown <= 0) && rat.state !== 'hurt' && rat.state !== 'defeated' && rat.state !== 'tailwhip') {
+        const incomingProj = heavyProjectiles.find(p => p.thrower === 'kitty' && p.progress > 0.40 && p.progress < 0.90);
+        if (incomingProj) {
+          const mouseCenter = rat.x + rat.width / 2;
+          if (Math.abs(incomingProj.x - mouseCenter) < 270 * gameScale) {
+            triggerRatTailWhip();
+            return;
+          }
+        }
+      }
+
+
+      // If holding cheese and ready to throw:
+      if (rat.carriedItem === 'cheese') {
+        if (rat.attackCooldown === 0) {
+          triggerRatCheeseThrow();
+          return;
+        }
+      }
+
+      // Ratty Rex always faces left towards Lizzy Kitty (prevents rapid sprite mirroring)
+      rat.direction = -1;
+
+      // --- SMOOTH BOSS PACING & DODGING (ZERO JITTER) ---
+      // 1. Initialize target patrol waypoint if unset
+      if (rat.targetX === undefined || rat.targetX === null) {
+        rat.targetX = minRatX + 40 * gameScale;
+        rat.pauseTimer = 0;
+      }
+
+      // 2. Dodge incoming heavy fish thrown by Kitty (with cooldown to prevent vibrating)
+      const incomingFish = heavyProjectiles.find(p => p.thrower === 'kitty' && p.progress > 0.15 && p.progress < 0.8);
+      if (incomingFish && (!rat.dodgeTimer || rat.dodgeTimer <= 0)) {
+        const mouseCenter = rat.x + rat.width / 2;
+        const distToLanding = mouseCenter - incomingFish.targetX;
+        if (Math.abs(distToLanding) < 170 * gameScale) {
+          // Move away to the safer side of its turf
+          if (distToLanding >= 0 && rat.x + 140 * gameScale < maxRatX) {
+            rat.targetX = Math.min(maxRatX - 25, rat.x + 160 * gameScale);
+          } else if (rat.x - 140 * gameScale > minRatX) {
+            rat.targetX = Math.max(minRatX + 25, rat.x - 160 * gameScale);
+          }
+          rat.pauseTimer = 0;
+          rat.dodgeTimer = 60; // Commit to dodge without flipping
+        }
+      }
+      if (rat.dodgeTimer > 0) rat.dodgeTimer--;
+
+      // 3. Smooth traversal towards targetX
+      if (rat.pauseTimer > 0) {
+        rat.pauseTimer--;
+        rat.vx *= 0.82;
+        if (rat.state !== 'happy') rat.state = 'idle';
+      } else {
+        const dx = rat.targetX - rat.x;
+        if (Math.abs(dx) > 12 * gameScale) {
+          const moveSpeed = rat.speed * 0.72;
+          const desiredVx = Math.sign(dx) * moveSpeed;
+          // Smooth acceleration and deceleration
+          rat.vx += (desiredVx - rat.vx) * 0.12;
+          if (rat.state !== 'happy') rat.state = 'walk';
+        } else {
+          // Reached patrol waypoint -> Pause smoothly, then pick next waypoint across territory
+          rat.vx *= 0.75;
+          rat.pauseTimer = 60 + Math.floor(Math.random() * 60); // 1 to 2 second pause
+          const midX = (minRatX + maxRatX) / 2;
+          if (rat.x < midX) {
+            rat.targetX = midX + 20 * gameScale + Math.random() * (maxRatX - midX - 40 * gameScale);
+          } else {
+            rat.targetX = minRatX + 20 * gameScale + Math.random() * (midX - minRatX - 40 * gameScale);
+          }
+          if (rat.state !== 'happy') rat.state = 'idle';
+        }
+      }
+
+      rat.x += rat.vx;
+      rat.x = Math.max(minRatX, Math.min(rat.x, maxRatX));
+    }
+
+    function updateHazards() {
+      // Spawn High-Altitude Helicopters flying left to right across top sky
+      if (Math.random() < 0.006 && helicopters.length < 2) {
+        helicopters.push({
+          x: -80 * gameScale,
+          y: Math.max(35, 60 * gameScale) + Math.random() * (60 * gameScale), // FLY HIGH IN SKY!
+          speed: Math.max(1.8, 2.6 * gameScale),
+          bombTimer: 90
+        });
+      }
+
+      helicopters.forEach((heli, idx) => {
+        heli.x += heli.speed;
+        heli.bombTimer--;
+
+        if (heli.bombTimer <= 0 && Math.abs(heli.x - (kitty.x + kitty.width / 2)) < 240 * gameScale) {
+          heli.bombTimer = 120;
+          particles.push({
+            type: 'bomb',
+            x: heli.x,
+            y: heli.y + 15 * gameScale,
+            vx: 0,
+            vy: Math.max(2.5, 3.5 * gameScale),
+            life: 75
+          });
+        }
+
+        if (heli.x > canvas.width + 100) helicopters.splice(idx, 1);
+      });
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life--;
+        if (p.vx) p.x += p.vx;
+        if (p.vy) p.y += p.vy;
+
+        // Bullet / Bomb collisions with Kitty
+        if (p.type === 'bullet' || p.type === 'bomb') {
+          const distToKitty = Math.abs(p.x - (kitty.x + kitty.width / 2));
+          if (distToKitty < 55 * gameScale && p.y > groundY - 100 * gameScale) {
+            kitty.napMeter -= p.type === 'bomb' ? 8 : 4;
+            kitty.deflectStreak = 0; // Reset streak on hazard hit!
+            kitty.state = 'hurt';
+            kitty.stateTimer = 10;
+            sound.playHurt();
+            particles.splice(i, 1);
+            continue;
+          }
+        }
+
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    // --- RENDER ENGINE ---
+    function render() {
+      // Clear entire canvas before drawing frame
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+
+      // 1. Sky & Realistic City Background Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      skyGrad.addColorStop(0, '#87CEEB');
+      skyGrad.addColorStop(0.6, '#E0F0FF');
+      skyGrad.addColorStop(1, '#dff9fb');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Background Kawaii Line-Art Clouds with Faces
+      const cloudCount = Math.max(2, Math.min(6, Math.floor(canvas.width / 240)));
+      const cloudScale = Math.max(0.40, Math.min(1.7, gameScale * 0.95));
+      for (let i = 0; i < cloudCount; i++) {
+        const cx = (i * (canvas.width / cloudCount) + 50 * gameScale) % (canvas.width + 120 * gameScale) - 40 * gameScale;
+        const cy = Math.max(30, 60 * gameScale) + (i % 3) * (20 * gameScale);
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(cloudScale, cloudScale);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+
+        // Fluffy Cloud Outline & Body
+        ctx.beginPath();
+        ctx.arc(0, 0, 35, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.arc(30, -25, 38, Math.PI * 1.0, Math.PI * 1.85);
+        ctx.arc(70, -20, 32, Math.PI * 1.3, Math.PI * 2.1);
+        ctx.arc(95, 0, 30, Math.PI * 1.6, Math.PI * 2.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Rosy Pink Cheeks
+        ctx.fillStyle = 'rgba(255, 182, 193, 0.85)';
+        ctx.beginPath();
+        ctx.arc(25, -2, 7, 0, Math.PI * 2);
+        ctx.arc(65, -2, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Kawaii Anime Eyes
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(34, -10, 4, 0, Math.PI * 2);
+        ctx.arc(56, -10, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cute Smile
+        ctx.beginPath();
+        ctx.arc(45, -5, 5, 0, Math.PI);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      ctx.save();
+
+      // 2. Kawaii Hand-Drawn Sketch Buildings with REACTIVE FACES!
+      buildings.forEach(bld => {
+        if (bld.floorsCount <= 0) return;
+
+        const bldY = groundY - bld.floorsCount * bld.floorHeight;
+
+        ctx.save();
+        // Sketch Building Fill & Bold 3px Black Stroke
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(bld.x, bldY, bld.width, bld.floorsCount * bld.floorHeight);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(bld.x, bldY, bld.width, bld.floorsCount * bld.floorHeight);
+
+        // Roof Line-Art Antenna / Water Tower
+        const antWidth = Math.min(18, bld.width * 0.25);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(bld.x + 8, bldY - 14 * gameScale, antWidth, 14 * gameScale);
+        ctx.strokeRect(bld.x + 8, bldY - 14 * gameScale, antWidth, 14 * gameScale);
+        ctx.beginPath();
+        ctx.moveTo(bld.x + bld.width - 15, bldY);
+        ctx.lineTo(bld.x + bld.width - 15, bldY - 20 * gameScale);
+        ctx.stroke();
+
+        // BIG REACTIVE KAWAII BUILDING FACE (Centered on Building!)
+        const faceX = bld.x + bld.width / 2;
+        const faceY = bldY + (bld.floorsCount * bld.floorHeight) / 2;
+        const faceScale = Math.min(1.4, Math.max(0.45, bld.width / 100));
+
+        ctx.save();
+        ctx.translate(faceX, faceY);
+        ctx.scale(faceScale, faceScale);
+        ctx.lineWidth = 3;
+
+        if (bld.floorsCount >= Math.ceil(bld.totalFloors * 0.7)) {
+          // Healthy Happy Big Face (^w^)
+          ctx.fillStyle = 'rgba(255, 182, 193, 0.9)';
+          ctx.beginPath();
+          ctx.arc(-22, 6, 10, 0, Math.PI * 2);
+          ctx.arc(22, 6, 10, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Big Shiny Kawaii Anime Eyes
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(-16, -6, 9.5, 0, Math.PI * 2);
+          ctx.arc(16, -6, 9.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // White Eye Sparkle Highlights
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(-18, -9, 3.5, 0, Math.PI * 2);
+          ctx.arc(14, -9, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Happy Cat Mouth
+          ctx.strokeStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(-6, 2, 7, 0, Math.PI);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(6, 2, 7, 0, Math.PI);
+          ctx.stroke();
+        } else if (bld.floorsCount >= Math.ceil(bld.totalFloors * 0.35)) {
+          // Damaged Shocked Face
+          ctx.fillStyle = 'rgba(255, 182, 193, 0.6)';
+          ctx.beginPath();
+          ctx.arc(-22, 6, 8, 0, Math.PI * 2);
+          ctx.arc(22, 6, 8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Wide Anime Eyes
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(-16, -6, 11, 0, Math.PI * 2);
+          ctx.arc(16, -6, 11, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(-19, -9, 4, 0, Math.PI * 2);
+          ctx.arc(13, -9, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Shocked "O" Mouth
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.ellipse(0, 8, 8, 12, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Critical Dizzy/Dead Face (X_X)
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 3.5;
+
+          // Left X Eye
+          ctx.beginPath();
+          ctx.moveTo(-24, -14); ctx.lineTo(-8, 2);
+          ctx.moveTo(-8, -14); ctx.lineTo(-24, 2);
+          ctx.stroke();
+
+          // Right X Eye
+          ctx.beginPath();
+          ctx.moveTo(8, -14); ctx.lineTo(24, 2);
+          ctx.moveTo(24, -14); ctx.lineTo(8, 2);
+          ctx.stroke();
+
+          // Frown Mouth
+          ctx.beginPath();
+          ctx.arc(0, 14, 8, Math.PI, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        ctx.restore();
+      });
+
+      // 3. Sketch Street & Kawaii Moat River
+      const streetY = groundY;
+      ctx.save();
+
+      // Render Large Impassable Moat / Deep Trench (Dividing Cat & Rat Turfs)
+      if (moatX > 0) {
+        // Deep Water / Moat Chasm Fill
+        const waterGrad = ctx.createLinearGradient(moatX, 0, moatX + moatWidth, 0);
+        waterGrad.addColorStop(0, '#0284c7');
+        waterGrad.addColorStop(0.5, '#0369a1');
+        waterGrad.addColorStop(1, '#0284c7');
+        ctx.fillStyle = waterGrad;
+        ctx.fillRect(moatX, streetY - 20 * gameScale, moatWidth, groundHeight + 20 * gameScale);
+
+        // Churning Water Waves / Foam
+        const rippleShift = (Date.now() / 120) % (24 * gameScale);
+        ctx.strokeStyle = '#e0f2fe';
+        ctx.lineWidth = Math.max(2, 3 * gameScale);
+        const waveW = Math.max(16, 24 * gameScale);
+        const waveStep = Math.max(26, 46 * gameScale);
+        const waveCount = Math.ceil(moatWidth / waveStep);
+        for (let r = 0; r < waveCount; r++) {
+          ctx.beginPath();
+          const wx = moatX + 6 * gameScale + r * waveStep + rippleShift;
+          if (wx + waveW < moatX + moatWidth) {
+            ctx.moveTo(wx, streetY + 15 * gameScale);
+            ctx.quadraticCurveTo(wx + waveW / 2, streetY + 5 * gameScale, wx + waveW, streetY + 15 * gameScale);
+            ctx.stroke();
+          }
+        }
+
+        // Steep Cliff Wall Outlines (Left & Right Banks)
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = Math.max(2.5, 4 * gameScale);
+        ctx.beginPath();
+        // Left cliff bank wall
+        ctx.moveTo(moatX, streetY - 20 * gameScale);
+        ctx.lineTo(moatX, streetY + groundHeight);
+        // Right cliff bank wall
+        ctx.moveTo(moatX + moatWidth, streetY - 20 * gameScale);
+        ctx.lineTo(moatX + moatWidth, streetY + groundHeight);
+        ctx.stroke();
+
+        // Kawaii Warning Posts on Left & Right Moat Edges
+        const signSize = Math.round(Math.max(18, 30 * gameScale));
+        // Left Post
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(moatX - signSize - 5, streetY - signSize - 18 * gameScale, signSize, signSize);
+        ctx.strokeRect(moatX - signSize - 5, streetY - signSize - 18 * gameScale, signSize, signSize);
+        ctx.fillStyle = '#000';
+        ctx.font = `bold ${Math.round(Math.max(10, 16 * gameScale))}px Patrick Hand`;
+        ctx.fillText('⚠️', moatX - signSize, streetY - 22 * gameScale);
+        ctx.fillRect(moatX - Math.round(signSize * 0.7), streetY - 18 * gameScale, Math.max(3, 5 * gameScale), 18 * gameScale);
+
+        // Right Post
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(moatX + moatWidth + 5, streetY - signSize - 18 * gameScale, signSize, signSize);
+        ctx.strokeRect(moatX + moatWidth + 5, streetY - signSize - 18 * gameScale, signSize, signSize);
+        ctx.fillStyle = '#000';
+        ctx.fillText('⚠️', moatX + moatWidth + 8, streetY - 22 * gameScale);
+        ctx.fillRect(moatX + moatWidth + Math.round(signSize * 0.4), streetY - 18 * gameScale, Math.max(3, 5 * gameScale), 18 * gameScale);
+      }
+
+      // Sidewalk & Asphalt Street Sections
+      const sidewalkH = Math.round(Math.max(8, 15 * gameScale));
+      ctx.fillStyle = '#f8fafc'; // Sketch Sidewalk
+      ctx.fillRect(0, streetY - sidewalkH, moatX, sidewalkH);
+      ctx.fillRect(moatX + moatWidth, streetY - sidewalkH, canvas.width - (moatX + moatWidth), sidewalkH);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = Math.max(2, 3 * gameScale);
+      ctx.beginPath();
+      ctx.moveTo(0, streetY - sidewalkH);
+      ctx.lineTo(canvas.width, streetY - sidewalkH);
+      ctx.stroke();
+
+      ctx.fillStyle = '#e2e8f0'; // Sketch Street
+      ctx.fillRect(0, streetY, moatX, groundHeight);
+      ctx.fillRect(moatX + moatWidth, streetY, canvas.width - (moatX + moatWidth), groundHeight);
+      ctx.beginPath();
+      ctx.moveTo(0, streetY);
+      ctx.lineTo(canvas.width, streetY);
+      ctx.stroke();
+
+      // Yellow Dashed Lane Lines
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = Math.max(2.5, 4 * gameScale);
+      ctx.setLineDash([25 * gameScale, 20 * gameScale]);
+      ctx.beginPath();
+      const laneY = streetY + groundHeight * 0.45;
+      ctx.moveTo(0, laneY);
+      ctx.lineTo(moatX, laneY);
+      ctx.moveTo(moatX + moatWidth, laneY);
+      ctx.lineTo(canvas.width, laneY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+
+      // 4. Render Heavy Parabolic Projectiles (Giant Fish & Giant Cheese) + Red Target Landing Markers!
+      heavyProjectiles.forEach(p => {
+        // A. Render Pulsing Red Target Landing Marker on Ground (🎯)
+        const pulse = (Math.sin(Date.now() / 80) + 1) * (6 * gameScale);
+        const tx = p.targetX;
+        const ty = p.targetY;
+        const targetRadius = (36 + pulse) * gameScale;
+
+        ctx.save();
+        // Pulsing Red Target Circle Fill
+        ctx.fillStyle = 'rgba(255, 71, 87, 0.22)';
+        ctx.strokeStyle = '#ff4757';
+        ctx.lineWidth = Math.max(2.5, 4 * gameScale);
+        ctx.beginPath();
+        ctx.arc(tx, ty - 10 * gameScale, targetRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner Red Target Circle & Crosshair Lines
+        ctx.beginPath();
+        ctx.arc(tx, ty - 10 * gameScale, 16 * gameScale, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(2, 3.5 * gameScale);
+        ctx.beginPath();
+        ctx.moveTo(tx - 48 * gameScale, ty - 10 * gameScale); ctx.lineTo(tx + 48 * gameScale, ty - 10 * gameScale);
+        ctx.moveTo(tx, ty - 58 * gameScale); ctx.lineTo(tx, ty + 38 * gameScale);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // B. Render Airborne Heavy Projectile (Giant Fish or Giant Cheese)
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        const projScale = Math.max(0.45, Math.min(1.8, gameScale * 0.95));
+        ctx.scale(projScale, projScale);
+
+        if (p.type === 'fish') {
+          // GIANT KAWAII FISH PROJECTILE (Pastel Sky Blue Body & Orange Tail)
+          ctx.lineWidth = 3.5;
+          ctx.strokeStyle = '#000000';
+
+          // Fish Body
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.ellipse(-5, 0, 35, 22, 0, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+
+          // Tail Fin
+          ctx.fillStyle = '#fb923c';
+          ctx.beginPath();
+          ctx.moveTo(25, 0);
+          ctx.lineTo(44, -18);
+          ctx.lineTo(44, 18);
+          ctx.closePath();
+          ctx.fill(); ctx.stroke();
+
+          // Eye
+          ctx.fillStyle = '#000000';
+          ctx.beginPath(); ctx.arc(-22, -6, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(-24, -8, 2, 0, Math.PI * 2); ctx.fill();
+
+          // Smile
+          ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(-15, 2, 6, 0, Math.PI); ctx.stroke();
+        } else {
+          // GIANT KAWAII CHEESE PROJECTILE (Golden Yellow Wedge block with Cheese Holes)
+          ctx.lineWidth = 3.5;
+          ctx.strokeStyle = '#000000';
+
+          // Cheese Wedge Fill
+          ctx.fillStyle = '#feca57';
+          ctx.beginPath();
+          ctx.moveTo(-35, -22);
+          ctx.lineTo(35, -22);
+          ctx.lineTo(25, 22);
+          ctx.lineTo(-30, 22);
+          ctx.closePath();
+          ctx.fill(); ctx.stroke();
+
+          // Cheese Holes
+          ctx.fillStyle = '#e5a50a';
+          ctx.beginPath();
+          ctx.arc(-15, -8, 6, 0, Math.PI * 2);
+          ctx.arc(15, 6, 7, 0, Math.PI * 2);
+          ctx.arc(-8, 12, 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Rosy Pink Cheeks
+          ctx.fillStyle = 'rgba(255, 107, 129, 0.85)';
+          ctx.beginPath();
+          ctx.arc(-18, 2, 4, 0, Math.PI * 2);
+          ctx.arc(8, 2, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Kawaii Face
+          ctx.fillStyle = '#000000';
+          ctx.beginPath(); ctx.arc(-12, -4, 3, 0, Math.PI * 2); ctx.arc(2, -4, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(-5, 2, 4, 0, Math.PI); ctx.stroke();
+        }
+
+        ctx.restore();
+      });
+
+      // 5. Render Falling Sky Drops (GIANT KAWAII FISH & CHEESE Floating Down from Sky!)
+      skyDrops.forEach(drop => {
+        const dy = drop.y + Math.sin(drop.bounceTimer) * (8 * gameScale);
+        ctx.save();
+        ctx.translate(drop.x, dy);
+        const dropScale = Math.max(0.45, Math.min(1.8, gameScale * 0.95));
+        ctx.scale(dropScale, dropScale);
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+
+        if (drop.type === 'fish') {
+          // HUGE GIANT KAWAII FISH
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.ellipse(-12, 0, 55, 32, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          // Tail Fin
+          ctx.fillStyle = '#fb923c';
+          ctx.beginPath(); ctx.moveTo(35, 0); ctx.lineTo(65, -26); ctx.lineTo(65, 26); ctx.closePath(); ctx.fill(); ctx.stroke();
+          // Rosy Pink Cheek
+          ctx.fillStyle = 'rgba(255, 107, 129, 0.85)';
+          ctx.beginPath(); ctx.arc(-32, 6, 7, 0, Math.PI * 2); ctx.fill();
+          // Kawaii Sparkly Eye
+          ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-34, -6, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-37, -8, 2.5, 0, Math.PI * 2); ctx.fill();
+          // Cute Smile
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(-24, 2, 7, 0, Math.PI); ctx.stroke();
+        } else if (drop.type === 'cheese') {
+          // HUGE GIANT KAWAII CHEESE WEDGE
+          ctx.fillStyle = '#feca57';
+          ctx.beginPath(); ctx.moveTo(-52, -28); ctx.lineTo(52, -28); ctx.lineTo(40, 28); ctx.lineTo(-44, 28); ctx.closePath(); ctx.fill(); ctx.stroke();
+          // Holes
+          ctx.fillStyle = '#e5a50a';
+          ctx.beginPath(); ctx.arc(-22, -9, 9, 0, Math.PI * 2); ctx.arc(20, 9, 10, 0, Math.PI * 2); ctx.arc(-12, 14, 7, 0, Math.PI * 2); ctx.fill();
+          // Cheeks & Face
+          ctx.fillStyle = 'rgba(255, 107, 129, 0.85)';
+          ctx.beginPath(); ctx.arc(-24, 4, 6, 0, Math.PI * 2); ctx.arc(12, 4, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#000';
+          ctx.beginPath(); ctx.arc(-18, -4, 4.5, 0, Math.PI * 2); ctx.arc(5, -4, 4.5, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(-6, 4, 6, 0, Math.PI); ctx.stroke();
+        }
+
+        ctx.restore();
+      });
+
+      helicopters.forEach(heli => {
+        ctx.save();
+        ctx.translate(heli.x, heli.y);
+        const heliScale = Math.max(0.45, Math.min(1.8, gameScale * 0.95));
+        ctx.scale(heliScale, heliScale);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+
+        // Helicopter Body
+        ctx.beginPath();
+        ctx.ellipse(20, 12, 24, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Tail Rotor Boom & Small Tail Blade
+        ctx.beginPath();
+        ctx.moveTo(-4, 12);
+        ctx.lineTo(-22, 10);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(-22, 10, 6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Top Spinning Rotor
+        const rOff = (Date.now() / 40) % 24;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-12 + rOff, -8);
+        ctx.lineTo(52 - rOff, -8);
+        ctx.moveTo(20, -8);
+        ctx.lineTo(20, -4);
+        ctx.stroke();
+
+        // Landing Skids
+        ctx.beginPath();
+        ctx.moveTo(2, 34);
+        ctx.lineTo(38, 34);
+        ctx.moveTo(10, 28);
+        ctx.lineTo(10, 34);
+        ctx.moveTo(30, 28);
+        ctx.lineTo(30, 34);
+        ctx.stroke();
+
+        // Rosy Pink Cheeks inside Cockpit
+        ctx.fillStyle = 'rgba(255, 182, 193, 0.9)';
+        ctx.beginPath();
+        ctx.arc(20, 14, 4, 0, Math.PI * 2);
+        ctx.arc(34, 14, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Kawaii Face inside Cockpit Glass
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(21, 10, 3, 0, Math.PI * 2);
+        ctx.arc(33, 10, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(27, 13, 4, 0, Math.PI);
+        ctx.stroke();
+
+        ctx.restore();
+      });
+
+      // 6. Render Rat Rival (B&W Sketch Sprite or Canvas Fallback)
+      renderCharacter(rat, 'mouse');
+
+      // 7. Render Kitty Dino (B&W Sketch Sprite or Canvas Fallback)
+      renderCharacter(kitty, 'kitty');
+
+      // 8. Render Particles & Effects
+      particles.forEach(p => {
+        if (p.type === 'dust') {
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.life / 30;
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+          ctx.globalAlpha = 1.0;
+        } else if (p.type === 'shockwave') {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 3;
+          ctx.globalAlpha = p.life / 20;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, (20 - p.life) * 5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+        } else if (p.type === 'bullet') {
+          ctx.fillStyle = '#e74c3c';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === 'bomb') {
+          ctx.fillStyle = '#2c3e50';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === 'text') {
+          const fontSize = Math.round(Math.max(13, Math.min(32, 20 * gameScale)));
+          ctx.font = `bold ${fontSize}px Fredoka`;
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.life / 30;
+          ctx.fillText(p.text, p.x, p.y);
+          ctx.globalAlpha = 1.0;
+        }
+      });
+
+      renderCountdownUI();
+      renderVictoryUI();
+
+      ctx.restore(); // Restore screen shake state
+    }
+
+    function renderCountdownUI() {
+      if (gameState !== 'COUNTDOWN') return;
+
+      const cx = canvas.width / 2;
+      const cy = canvas.height * 0.38;
+
+      ctx.save();
+
+      if (countdownTimer > 30) {
+        // --- COUNTDOWN NUMBERS (3, 2, 1) ---
+        let countText = '';
+        let countColor = '#ff4757';
+        let frameProgress = 0;
+
+        if (countdownTimer > 150) {
+          countText = '3';
+          countColor = '#ff4757';
+          frameProgress = (210 - countdownTimer) / 60;
+        } else if (countdownTimer > 90) {
+          countText = '2';
+          countColor = '#feca57';
+          frameProgress = (150 - countdownTimer) / 60;
+        } else {
+          countText = '1';
+          countColor = '#38bdf8';
+          frameProgress = (90 - countdownTimer) / 60;
+        }
+
+        // Pop & Bounce Animation Math
+        let scale = 1.0;
+        if (frameProgress < 0.25) {
+          const p = frameProgress / 0.25;
+          scale = 1.8 - 0.8 * Math.sin(p * Math.PI * 0.5);
+        } else {
+          const p = (frameProgress - 0.25) / 0.75;
+          scale = 1.0 + Math.sin(p * Math.PI * 2) * 0.06;
+        }
+
+        const fontSize = Math.round(Math.max(90, Math.min(220, 140 * gameScale)));
+        ctx.font = `900 ${fontSize}px Fredoka, 'Gaegu', cursive, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+
+        // Kawaii 3D Shadow Offset
+        ctx.fillStyle = '#000000';
+        ctx.fillText(countText, 8, 8);
+
+        // Bold Black Line-Art Outline
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = Math.max(8, 14 * gameScale);
+        ctx.lineJoin = 'round';
+        ctx.strokeText(countText, 0, 0);
+
+        // Pastel Vibrant Fill
+        ctx.fillStyle = countColor;
+        ctx.fillText(countText, 0, 0);
+
+        // White Sparkle Highlight Stroke
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(3, 5 * gameScale);
+        ctx.strokeText(countText, 0, 0);
+
+        ctx.restore();
+
+      } else {
+        // --- EMOJI HEAD-KNOCKING CLASH (frames 30 down to 0) ---
+        const progress = (30 - countdownTimer) / 30; // 0 to 1
+        const impactFrame = 0.5;
+
+        const emojiSize = Math.round(Math.max(70, Math.min(180, 110 * gameScale)));
+        const maxOffset = 220 * gameScale;
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `${emojiSize}px sans-serif`;
+
+        if (progress <= impactFrame) {
+          // Approach Phase
+          const p = progress / impactFrame;
+          const currentOffset = maxOffset * (1 - Math.sin(p * Math.PI * 0.5));
+          const catAngle = (-35 + p * 45) * (Math.PI / 180);
+          const mouseAngle = (35 - p * 45) * (Math.PI / 180);
+
+          // Draw Left Cat Emoji 🐱
+          ctx.save();
+          ctx.translate(cx - currentOffset - 35 * gameScale, cy);
+          ctx.rotate(catAngle);
+          ctx.fillText('🐱', 0, 0);
+          ctx.restore();
+
+          // Draw Right Mouse Emoji 🐭
+          ctx.save();
+          ctx.translate(cx + currentOffset + 35 * gameScale, cy);
+          ctx.rotate(mouseAngle);
+          ctx.fillText('🐭', 0, 0);
+          ctx.restore();
+
+        } else {
+          // Post-Impact Recoil Phase
+          const p = (progress - impactFrame) / (1 - impactFrame);
+          const recoilOffset = Math.sin(p * Math.PI) * (25 * gameScale);
+          const catAngle = (10 - p * 20) * (Math.PI / 180);
+          const mouseAngle = (-10 + p * 20) * (Math.PI / 180);
+
+          // Draw Left Cat Emoji 🐱
+          ctx.save();
+          ctx.translate(cx - 30 * gameScale - recoilOffset, cy);
+          ctx.rotate(catAngle);
+          ctx.fillText('🐱', 0, 0);
+          ctx.restore();
+
+          // Draw Right Mouse Emoji 🐭
+          ctx.save();
+          ctx.translate(cx + 30 * gameScale + recoilOffset, cy);
+          ctx.rotate(mouseAngle);
+          ctx.fillText('🐭', 0, 0);
+          ctx.restore();
+
+          // Draw Giant Impact Explosion 💥 in center!
+          ctx.save();
+          const impactSize = Math.round(emojiSize * (1.2 + Math.sin(p * Math.PI) * 0.4));
+          ctx.font = `${impactSize}px sans-serif`;
+          ctx.fillText('💥', cx, cy);
+          ctx.restore();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function renderCharacter(char, type) {
+      ctx.save();
+      const cx = char.x + char.width / 2;
+      const groundOffset = type === 'kitty' ? char.height * 0.22 : char.height * 0.20;
+      const cy = groundY - char.height / 2 + groundOffset;
+
+      ctx.translate(cx, cy);
+      if (type === 'kitty') {
+        if (char.direction === 1) {
+          ctx.scale(-1, 1);
+        }
+      } else {
+        if (char.direction === -1) {
+          ctx.scale(-1, 1);
+        }
+      }
+
+      // 1. Dynamic Hurt & Defeat Animations (Tilt & Recoil)
+      if (char.state === 'hurt' && char.stateTimer > 0) {
+        // Dramatic comedic cartoon recoil tilt backwards + wobble shake
+        const flinchTilt = (type === 'kitty' ? -1 : 1) * 0.16 + Math.sin(char.stateTimer * 1.3) * 0.08;
+        ctx.rotate(flinchTilt);
+        ctx.translate(type === 'kitty' ? -8 * gameScale : 8 * gameScale, -10 * gameScale);
+      } else if (char.state === 'defeated') {
+        // Dramatic defeat knockdown toppling over
+        const defeatProgress = Math.min(1.0, ((char.defeatProgress || 0) + 0.035));
+        char.defeatProgress = defeatProgress;
+        ctx.rotate((type === 'kitty' ? -1 : 1) * (defeatProgress * (Math.PI / 2.2)));
+        ctx.translate(0, 30 * gameScale * defeatProgress);
+      } else if (char.state === 'tailwhip') {
+        // Dynamic Tail Whip 720-degree Spin Animation!
+        // Blue/Cyan (#38bdf8) for Kitty, Red (#ff4757) for Rat!
+        const spinProgress = Math.max(0, Math.min(1.0, (26 - char.stateTimer) / 26));
+        const spinAngle = spinProgress * Math.PI * 4; // 2 complete 360-degree spins
+        ctx.rotate(spinAngle);
+
+        // Kawaii glowing energy whirlwind / whoosh lines around spinning tail
+        ctx.save();
+        ctx.strokeStyle = type === 'kitty' ? '#38bdf8' : '#ff4757'; // Red for rat!
+        ctx.lineWidth = Math.max(3.5, 7 * gameScale);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, char.width * 0.52, -spinAngle, -spinAngle + Math.PI * 1.1);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(2, 4 * gameScale);
+        ctx.beginPath();
+        ctx.arc(0, 0, char.width * 0.46, -spinAngle + 0.3, -spinAngle + Math.PI * 0.9);
+        ctx.stroke();
+
+        ctx.strokeStyle = type === 'kitty' ? '#feca57' : '#ff6b81'; // Crimson-pink for rat!
+        ctx.lineWidth = Math.max(2, 3.5 * gameScale);
+        ctx.beginPath();
+        ctx.arc(0, 0, char.width * 0.38, -spinAngle + 0.6, -spinAngle + Math.PI * 0.7);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 2. Animated Cartoon Dizzy Stars Orbiting Above Head
+      if ((char.state === 'hurt' && char.stateTimer > 0) || char.state === 'defeated') {
+        ctx.save();
+        const headTopY = -char.height / 2 - 25 * gameScale;
+        const orbitTime = Date.now() / 140;
+        const starSize = Math.max(0.5, Math.min(1.8, gameScale));
+        for (let s = 0; s < 3; s++) {
+          const starAngle = orbitTime + (s * Math.PI * 2) / 3;
+          const sx = Math.cos(starAngle) * (44 * gameScale);
+          const sy = headTopY + Math.sin(starAngle) * (14 * gameScale);
+
+          ctx.save();
+          ctx.translate(sx, sy);
+          ctx.scale(starSize, starSize);
+          ctx.rotate(starAngle * 2.5);
+          ctx.fillStyle = '#feca57';
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (let p = 0; p < 4; p++) {
+            const a = (p * Math.PI) / 2;
+            const ra = a + Math.PI / 4;
+            if (p === 0) ctx.moveTo(Math.cos(a) * 10, Math.sin(a) * 10);
+            else ctx.lineTo(Math.cos(a) * 10, Math.sin(a) * 10);
+            ctx.lineTo(Math.cos(ra) * 4.5, Math.sin(ra) * 4.5);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+
+      // Draw carried building overhead if picking one up!
+      if (char.carriedBuilding) {
+        ctx.save();
+        const cbScale = Math.max(0.4, Math.min(2.0, gameScale));
+        ctx.translate(0, -char.height / 2 - 40 * gameScale);
+        ctx.scale(cbScale, cbScale);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.fillRect(-55, 0, 110, 80);
+        ctx.strokeRect(-55, 0, 110, 80);
+
+        // Big Cute Face on Carried Building
+        const cby = 40;
+        ctx.fillStyle = 'rgba(255, 182, 193, 0.9)';
+        ctx.beginPath();
+        ctx.arc(-22, cby + 10, 7, 0, Math.PI * 2);
+        ctx.arc(22, cby + 10, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(-16, cby - 10, 7, 0, Math.PI * 2);
+        ctx.arc(16, cby - 10, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-14, cby - 12, 2.5, 0, Math.PI * 2);
+        ctx.arc(18, cby - 12, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, cby + 5, 5, 0, Math.PI);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Check loaded image sprite
+      let spriteKey = `${type}-${char.state}`;
+      if (char.state === 'tailwhip') {
+        spriteKey = type === 'kitty' ? 'kitty-swipe' : 'mouse-attack';
+      } else if (char.state === 'walk') {
+        const frame = Math.floor(Date.now() / 150) % 2 === 0 ? 'walk1' : 'walk2';
+        spriteKey = `${type}-${frame}`;
+      }
+
+      const img = spriteMgr.get(spriteKey) ||
+        (char.state === 'hurt' ? spriteMgr.get(`${type}-hurt`) : null) ||
+        (char.state === 'defeated' ? spriteMgr.get(`${type}-defeated`) : null) ||
+        spriteMgr.get(`${type}-idle`);
+
+      if (img && img.complete && img.naturalWidth !== 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.drawImage(img, -char.width / 2, -char.height / 2, char.width, char.height);
+        ctx.restore();
+      } else {
+        // Procedural Fallback Renderer (Clean B&W Line Art)
+        ctx.save();
+        const fallbackScale = Math.max(0.4, Math.min(2.0, gameScale));
+        ctx.scale(fallbackScale, fallbackScale);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        ctx.fillStyle = '#fff';
+
+        if (type === 'kitty') {
+          // Body
+          ctx.beginPath(); ctx.ellipse(0, 10, 45, 50, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+          // Spikes
+          ctx.beginPath();
+          ctx.moveTo(-35, -10); ctx.lineTo(-50, -15); ctx.lineTo(-30, 5);
+          ctx.moveTo(-30, 15); ctx.lineTo(-45, 15); ctx.lineTo(-25, 30);
+          ctx.stroke();
+
+          // Head
+          ctx.beginPath(); ctx.arc(0, -35, 35, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+          // Ears
+          ctx.beginPath();
+          ctx.moveTo(-25, -60); ctx.lineTo(-15, -75); ctx.lineTo(-5, -62);
+          ctx.moveTo(5, -62); ctx.lineTo(15, -75); ctx.lineTo(25, -60);
+          ctx.stroke();
+
+          // Face
+          ctx.fillStyle = '#000';
+          ctx.beginPath(); ctx.arc(-12, -38, 5, 0, Math.PI * 2); ctx.arc(12, -38, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(0, -28, 6, 0, Math.PI); ctx.stroke();
+        } else {
+          // Rex Body
+          ctx.beginPath(); ctx.ellipse(0, 10, 40, 45, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          // Ears
+          ctx.beginPath(); ctx.arc(-25, -50, 18, 0, Math.PI * 2); ctx.arc(20, -50, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          // Head
+          ctx.beginPath(); ctx.arc(0, -30, 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          // Tail
+          ctx.beginPath(); ctx.moveTo(-35, 30); ctx.quadraticCurveTo(-70, 40, -60, 10); ctx.stroke();
+          // Face
+          if (char.state === 'hurt' || char.state === 'defeated') {
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3.5;
+            // X Eye left
+            ctx.beginPath();
+            ctx.moveTo(-16, -38); ctx.lineTo(-6, -26);
+            ctx.moveTo(-6, -38); ctx.lineTo(-16, -26);
+            ctx.stroke();
+            // X Eye right
+            ctx.beginPath();
+            ctx.moveTo(6, -38); ctx.lineTo(16, -26);
+            ctx.moveTo(16, -38); ctx.lineTo(6, -26);
+            ctx.stroke();
+            // Dizzy open mouth
+            ctx.fillStyle = '#ff4757';
+            ctx.beginPath();
+            ctx.ellipse(0, -18, 8, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(-10, -32, 4, 0, Math.PI * 2); ctx.arc(10, -32, 4, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      // Draw carried item (Giant Fish overhead or Giant Cheese in hands!)
+      if (char.carriedItem) {
+        if (char.carriedItem === 'fish') {
+          // GIANT KAWAII FISH CARRIED OVERHEAD
+          ctx.save();
+          const itemY = -char.height / 2 - 30 * gameScale;
+          ctx.translate(0, itemY);
+          const fishScale = Math.max(0.45, Math.min(1.8, gameScale * 0.95));
+          ctx.scale(fishScale, fishScale);
+
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 3.5;
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.ellipse(0, 0, 52, 30, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          // Tail Fin
+          ctx.fillStyle = '#fb923c';
+          ctx.beginPath(); ctx.moveTo(38, 0); ctx.lineTo(65, -24); ctx.lineTo(65, 24); ctx.closePath(); ctx.fill(); ctx.stroke();
+          // Rosy Pink Cheek
+          ctx.fillStyle = 'rgba(255, 107, 129, 0.85)';
+          ctx.beginPath(); ctx.arc(-24, 6, 7, 0, Math.PI * 2); ctx.fill();
+          // Kawaii Eye (Sparkly anime eye)
+          ctx.fillStyle = '#000000';
+          ctx.beginPath(); ctx.arc(-26, -6, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.arc(-28, -8, 2.5, 0, Math.PI * 2); ctx.fill();
+          // Cute Smile
+          ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(-18, 2, 7, 0, Math.PI); ctx.stroke();
+          ctx.restore();
+        } else if (char.carriedItem === 'cheese') {
+          // IN THE HANDS OF THE MOUSE!
+          const itemX = 35 * gameScale;
+          const itemY = 45 * gameScale;
+          ctx.save();
+          ctx.translate(itemX, itemY);
+          const cheeseScale = Math.max(0.45, Math.min(1.8, gameScale * 0.95));
+          ctx.scale(cheeseScale, cheeseScale);
+
+          // GIANT KAWAII CHEESE WEDGE IN HANDS
+          ctx.fillStyle = '#feca57';
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.moveTo(-45, -24);
+          ctx.lineTo(45, -24);
+          ctx.lineTo(36, 24);
+          ctx.lineTo(-40, 24);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Cheese Holes
+          ctx.fillStyle = '#e5a50a';
+          ctx.beginPath();
+          ctx.arc(-18, -8, 8, 0, Math.PI * 2);
+          ctx.arc(16, 8, 8, 0, Math.PI * 2);
+          ctx.arc(-10, 12, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Rosy Pink Cheeks
+          ctx.fillStyle = 'rgba(255, 107, 129, 0.85)';
+          ctx.beginPath();
+          ctx.arc(-20, 3, 5, 0, Math.PI * 2);
+          ctx.arc(10, 3, 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Kawaii Face
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(-15, -4, 4, 0, Math.PI * 2);
+          ctx.arc(4, -4, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(-5, 3, 5, 0, Math.PI);
+          ctx.stroke();
+
+          // Cute mouse paws holding the cheese
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 3.5;
+          // Left paw
+          ctx.beginPath();
+          ctx.ellipse(-38, 10, 11, 8, -0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Right paw
+          ctx.beginPath();
+          ctx.ellipse(36, 10, 11, 8, 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.restore();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // --- PARTICLE EFFECT HELPERS ---
+    function createDustDebris(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          type: 'dust',
+          x: x + (Math.random() - 0.5) * 60,
+          y: y + (Math.random() - 0.5) * 30,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 1.0) * 5,
+          size: 6 + Math.random() * 8,
+          color: color,
+          life: 25 + Math.random() * 15
+        });
+      }
+    }
+
+    function createShockwave(x, y) {
+      particles.push({ type: 'shockwave', x: x, y: y, life: 20 });
+    }
+
+    function createArcEffect(x, y, dir) {
+      particles.push({
+        type: 'text',
+        x: x,
+        y: y,
+        vx: dir * 2,
+        vy: -2,
+        text: 'SWIPE! 🐾',
+        color: '#ff6b81',
+        life: 20
+      });
+    }
+
+    function createStarsEffect(x, y) {
+      particles.push({
+        type: 'text',
+        x: x,
+        y: y,
+        vx: 0,
+        vy: -3,
+        text: '⭐ OUCH! ⭐',
+        color: '#feca57',
+        life: 25
+      });
+    }
+
+    function createBubblePopEffect(x, y) {
+      particles.push({
+        type: 'text',
+        x: x - 20,
+        y: y,
+        vx: 0,
+        vy: -2.5,
+        text: '🫧 POP! YUM!',
+        color: '#ff4757',
+        life: 30
+      });
+      particles.push({ type: 'shockwave', x: x, y: y, life: 16 });
+    }
+
+    function createCatchReachEffect(x, y, text) {
+      particles.push({
+        type: 'text',
+        x: x - 80,
+        y: y,
+        vx: 0,
+        vy: -2.5,
+        text: text,
+        color: '#38bdf8',
+        life: 40
+      });
+    }
+
+    // --- OVERLAY FLOW CONTROL ---
+    function triggerGameOver() {
+      gameState = 'GAMEOVER';
+      document.getElementById('gameover-overlay').classList.remove('hidden');
+    }
+
+    function showVictoryScreen() {
+      gameState = 'VICTORY';
+      victoryTimer = 0;
+      goldConfetti = [];
+      // Initial splash burst of gold confetti particles
+      for (let i = 0; i < 70; i++) {
+        goldConfetti.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height * 0.8 - canvas.height * 0.2,
+          vx: (Math.random() - 0.5) * 2,
+          vy: Math.max(1.8, (2.2 + Math.random() * 3.0) * gameScale),
+          width: Math.max(6, (8 + Math.random() * 10) * gameScale),
+          height: Math.max(10, (12 + Math.random() * 14) * gameScale),
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.15,
+          swayTimer: Math.random() * Math.PI * 2,
+          color: ['#ffd700', '#f39c12', '#ffb142', '#feca57', '#fff3a0', '#ffffff'][Math.floor(Math.random() * 6)]
+        });
+      }
+      sound.playVictoryFanfare();
+    }
+
+    function renderVictoryUI() {
+      if (gameState !== 'VICTORY') return;
+
+      const cx = canvas.width / 2;
+      const cy = canvas.height * 0.38;
+
+      ctx.save();
+
+      // 1. Draw Golden Confetti Rain
+      goldConfetti.forEach(c => {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.rotation);
+        ctx.fillStyle = c.color;
+        ctx.fillRect(-c.width / 2, -c.height / 2, c.width, c.height);
+        ctx.restore();
+      });
+
+      // 2. Spinning Golden Sunburst Rays behind Trophy
+      const rayCount = 12;
+      const rayAngleStep = (Math.PI * 2) / rayCount;
+      const spinOffset = Date.now() / 2500;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.fillStyle = 'rgba(254, 202, 87, 0.16)';
+      for (let i = 0; i < rayCount; i++) {
+        const angle = spinOffset + i * rayAngleStep;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, Math.max(250, 360 * gameScale), angle - 0.15, angle + 0.15);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // 3. Elastic Pop & Floating Bounce animation for Gold Trophy
+      let scale = 1.0;
+      if (victoryTimer < 40) {
+        const p = victoryTimer / 40;
+        scale = Math.sin(p * Math.PI * 0.5) * 1.25;
+      } else {
+        scale = 1.0 + Math.sin((victoryTimer - 40) * 0.08) * 0.05;
+      }
+
+      const floatY = cy + Math.sin(victoryTimer * 0.07) * (12 * gameScale);
+
+      // 4. Render Big Gold Trophy 🏆
+      const trophyEmojiSize = Math.round(Math.max(100, Math.min(240, 160 * gameScale)));
+
+      ctx.save();
+      ctx.translate(cx, floatY);
+      ctx.scale(scale, scale);
+
+      // Gold Glow behind Trophy
+      const glowGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, trophyEmojiSize * 0.8);
+      glowGrad.addColorStop(0, 'rgba(255, 215, 0, 0.5)');
+      glowGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, trophyEmojiSize * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Big Gold Trophy Emoji 🏆
+      ctx.font = `${trophyEmojiSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏆', 0, 0);
+
+      // Sparkling Stars Orbiting Trophy
+      const starTime = Date.now() / 300;
+      for (let s = 0; s < 4; s++) {
+        const sa = starTime + (s * Math.PI) / 2;
+        const sx = Math.cos(sa) * (trophyEmojiSize * 0.65);
+        const sy = Math.sin(sa) * (trophyEmojiSize * 0.45);
+        ctx.font = `${Math.round(trophyEmojiSize * 0.22)}px sans-serif`;
+        ctx.fillText('✨', sx, sy);
+      }
+
+      ctx.restore();
+    }
+
+    // --- MAIN GAME LOOP ---
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Start loop
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+
+</html>
