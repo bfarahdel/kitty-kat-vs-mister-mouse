@@ -358,16 +358,16 @@
       }
 
       .hud-title {
-        font-size: clamp(0.68rem, 3.2vw, 0.82rem);
+        font-size: clamp(0.65rem, 2.7vw, 0.82rem);
         white-space: nowrap;
         gap: 2px;
-        overflow: hidden;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
 
       .hud-title span {
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
 
       .meter-bar {
@@ -833,7 +833,14 @@
         </div>
       </div>
 
-      <button class="btn" id="start-btn" style="position: relative; z-index: 10;">START BATTLE</button>
+      <!-- Kawaii Asset Loader -->
+      <div id="loader-container" style="display: flex; justify-content: center; align-items: center; margin-bottom: 14px; z-index: 10;">
+        <div style="width: 220px; height: 18px; background: #ffffff; border: 3px solid #000000; border-radius: 12px; overflow: hidden; box-shadow: 3px 3px 0px #000000;">
+          <div id="loader-bar" style="width: 0%; height: 100%; background: #ff6b81; transition: width 0.15s ease;"></div>
+        </div>
+      </div>
+
+      <button class="btn" id="start-btn" style="position: relative; z-index: 10; display: none;">START BATTLE</button>
 
       <!-- Footer Credits -->
       <div class="title-footer-credits" style="margin-top: 18px; font-size: 1.25rem; color: #334155; font-family: 'Patrick Hand', 'Gaegu', cursive; display: flex; flex-direction: column; gap: 3px; align-items: center; text-shadow: 1px 1px 0px #ffffff; position: relative; z-index: 10;">
@@ -1043,20 +1050,35 @@
       });
     }
 
-    // --- SPRITE MANAGER ---
+    // --- SPRITE MANAGER WITH PRELOADER ---
     class SpriteManager {
       constructor() {
         this.sprites = {};
+        this.loadedCount = 0;
+        this.totalSprites = 0;
+        this.onProgress = null;
+        this.onComplete = null;
       }
 
       loadSprite(key, src) {
+        this.totalSprites++;
         const img = new Image();
         this.sprites[key] = img;
-        img.onload = () => {
-          // Sprite loaded successfully
+
+        const handleDone = () => {
+          this.loadedCount++;
+          if (this.onProgress) {
+            this.onProgress(this.loadedCount, this.totalSprites);
+          }
+          if (this.loadedCount >= this.totalSprites && this.onComplete) {
+            this.onComplete();
+          }
         };
+
+        img.onload = handleDone;
         img.onerror = () => {
           console.warn('Failed to load sprite:', src);
+          handleDone();
         };
         img.src = src;
       }
@@ -1067,21 +1089,34 @@
     }
 
     const spriteMgr = new SpriteManager();
-    spriteMgr.loadSprite('kitty-idle', 'assets/kitty-idle.png?v=3');
-    spriteMgr.loadSprite('kitty-walk1', 'assets/kitty-walk1.png?v=3');
-    spriteMgr.loadSprite('kitty-walk2', 'assets/kitty-walk2.png?v=3');
-    spriteMgr.loadSprite('kitty-swipe', 'assets/kitty-swipe.png?v=3');
-    spriteMgr.loadSprite('kitty-happy', 'assets/kitty-happy.png?v=3');
-    spriteMgr.loadSprite('kitty-hurt', 'assets/kitty-hurt.png?v=3');
-    spriteMgr.loadSprite('kitty-sleepy', 'assets/kitty-sleepy.png?v=3');
+    spriteMgr.onProgress = (loaded, total) => {
+      const pct = Math.round((loaded / total) * 100);
+      const bar = document.getElementById('loader-bar');
+      if (bar) bar.style.width = pct + '%';
+    };
 
-    spriteMgr.loadSprite('mouse-idle', 'assets/mouse-idle.png?v=3');
-    spriteMgr.loadSprite('mouse-walk1', 'assets/mouse-walk1.png?v=3');
-    spriteMgr.loadSprite('mouse-walk2', 'assets/mouse-walk2.png?v=3');
-    spriteMgr.loadSprite('mouse-attack', 'assets/mouse-attack.png?v=3');
-    spriteMgr.loadSprite('mouse-happy', 'assets/mouse-happy.png?v=3');
-    spriteMgr.loadSprite('mouse-hurt', 'assets/mouse-hurt.png?v=3');
-    spriteMgr.loadSprite('mouse-defeated', 'assets/mouse-defeated.png?v=3');
+    spriteMgr.onComplete = () => {
+      const loaderContainer = document.getElementById('loader-container');
+      const startBtn = document.getElementById('start-btn');
+      if (loaderContainer) loaderContainer.style.display = 'none';
+      if (startBtn) startBtn.style.display = 'inline-block';
+    };
+
+    spriteMgr.loadSprite('kitty-idle', 'assets/kitty-idle.png');
+    spriteMgr.loadSprite('kitty-walk1', 'assets/kitty-walk1.png');
+    spriteMgr.loadSprite('kitty-walk2', 'assets/kitty-walk2.png');
+    spriteMgr.loadSprite('kitty-swipe', 'assets/kitty-swipe.png');
+    spriteMgr.loadSprite('kitty-happy', 'assets/kitty-happy.png');
+    spriteMgr.loadSprite('kitty-hurt', 'assets/kitty-hurt.png');
+    spriteMgr.loadSprite('kitty-sleepy', 'assets/kitty-sleepy.png');
+
+    spriteMgr.loadSprite('mouse-idle', 'assets/mouse-idle.png');
+    spriteMgr.loadSprite('mouse-walk1', 'assets/mouse-walk1.png');
+    spriteMgr.loadSprite('mouse-walk2', 'assets/mouse-walk2.png');
+    spriteMgr.loadSprite('mouse-attack', 'assets/mouse-attack.png');
+    spriteMgr.loadSprite('mouse-happy', 'assets/mouse-happy.png');
+    spriteMgr.loadSprite('mouse-hurt', 'assets/mouse-hurt.png');
+    spriteMgr.loadSprite('mouse-defeated', 'assets/mouse-defeated.png');
     spriteMgr.loadSprite('tank', 'assets/tank.png');
 
     // --- GAME ENGINE & RESPONSIVE SCALING SYSTEM ---
