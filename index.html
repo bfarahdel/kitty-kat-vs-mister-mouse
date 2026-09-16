@@ -143,7 +143,7 @@
       display: none;
     }
 
-    @media (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+    @media (max-width: 768px) {
       .instructions-desktop {
         display: none !important;
       }
@@ -340,7 +340,7 @@
     /* Small Screen Optimization (Phones & Small Tablets) */
     @media (max-width: 768px) {
       #hud {
-        padding: 10px 14px;
+        padding: 8px 12px;
         gap: 8px;
       }
 
@@ -355,11 +355,17 @@
       }
 
       .hud-title {
-        font-size: 0.82rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        gap: 4px;
+      }
+
+      .hud-title span {
+        white-space: nowrap;
       }
 
       .meter-bar {
-        height: 12px;
+        height: 14px;
         border-radius: 8px;
       }
 
@@ -374,6 +380,111 @@
       .card {
         padding: 16px 20px;
         max-width: 90vw;
+      }
+    }
+
+    /* Kawaii Mobile Bottom Control Bar */
+    #mobile-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 64px;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-top: 3.5px solid #000000;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px;
+      pointer-events: none;
+      z-index: 8;
+    }
+
+    .mobile-dpad,
+    .mobile-actions {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .touch-btn {
+      background: #ffffff;
+      color: #000000;
+      border: 3px solid #000000;
+      border-radius: 16px;
+      box-shadow: 3px 3px 0px #000000;
+      font-family: 'Fredoka', 'Gaegu', cursive, sans-serif;
+      font-weight: 700;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+      transition: transform 0.06s ease, background-color 0.1s ease;
+      cursor: pointer;
+    }
+
+    .touch-btn:active,
+    .touch-btn.active {
+      transform: translateY(2px) scale(0.94);
+      box-shadow: 1px 1px 0px #000000;
+    }
+
+    .touch-move,
+    .touch-action {
+      width: 48px;
+      height: 48px;
+      font-size: 1.3rem;
+      padding: 0;
+    }
+
+    .btn-attack {
+      background: #ffec99;
+    }
+
+    .btn-attack:hover,
+    .btn-attack:active,
+    .btn-attack.active {
+      background: #ffe066;
+    }
+
+    .btn-whip {
+      background: #a5d8ff;
+    }
+
+    .btn-whip:hover,
+    .btn-whip:active,
+    .btn-whip.active {
+      background: #74c0fc;
+    }
+
+    @media (min-width: 1025px) {
+      #mobile-controls {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #mobile-controls {
+        height: 58px;
+        padding: 0 12px;
+      }
+
+      .touch-move,
+      .touch-action {
+        width: 42px;
+        height: 42px;
+        font-size: 1.15rem;
+      }
+
+      .mobile-dpad,
+      .mobile-actions {
+        gap: 8px;
       }
     }
 
@@ -663,6 +774,18 @@
       </div>
     </div>
 
+    <!-- Kawaii Mobile Bottom Control Bar -->
+    <div id="mobile-controls">
+      <div class="mobile-dpad">
+        <button class="touch-btn touch-move" id="btn-left">◀</button>
+        <button class="touch-btn touch-move" id="btn-right">▶</button>
+      </div>
+      <div class="mobile-actions">
+        <button class="touch-btn touch-action btn-attack" id="btn-attack">🐟</button>
+        <button class="touch-btn touch-action btn-whip" id="btn-tailwhip">🌀</button>
+      </div>
+    </div>
+
     <!-- Title Screen Overlay -->
     <div class="overlay" id="title-overlay">
       <h1 class="game-title">Kitty Kat vs. Mister Mouse</h1>
@@ -691,13 +814,13 @@
         <!-- Mobile Instructions (Displayed on Mobile Screens) -->
         <div class="instructions-mobile" style="font-size: 1.05rem; line-height: 1.55; color: #1e293b;">
           <div>
-            🐾 <strong>Move:</strong> <strong>Touch &amp; Drag</strong>
+            🐾 <strong>Move:</strong> Drag horizontally or press <strong>◀ / ▶</strong>
           </div>
           <div>
-            🐟 <strong>Throw Fish:</strong> <strong>Tap the Screen</strong>
+            🐟 <strong>Throw Fish:</strong> Tap the screen or press <strong>🐟</strong>
           </div>
           <div>
-            🌀 <strong>Tail Whip &amp; Deflect:</strong> <strong>Double-Tap the Screen</strong>
+            🌀 <strong>Tail Whip &amp; Deflect:</strong> Double-tap the screen or press <strong>🌀</strong>
           </div>
         </div>
       </div>
@@ -920,12 +1043,12 @@
 
       loadSprite(key, src) {
         const img = new Image();
+        this.sprites[key] = img;
         img.onload = () => {
-          this.sprites[key] = img;
+          // Sprite loaded successfully
         };
         img.onerror = () => {
           console.warn('Failed to load sprite:', src);
-          this.sprites[key] = null;
         };
         img.src = src;
       }
@@ -1028,22 +1151,21 @@
       const w = canvas.width;
       const h = canvas.height;
 
-      // Responsive scale factor:
-      // In reference resolution (1366 x 768), Kitty=460, Moat=280, Rat=440 (Total = 1180px)
-      // When screen is narrow (portrait or mobile), scale is constrained by width so both Kaijus fit.
-      // When screen is wide (landscape / desktop), scale expands to fill larger screens!
+      // Responsive scale factor based purely on screen dimensions (w & h):
       if (w < h) {
-        // Portrait mobile / tablet: width is constrained
+        // Portrait mode
         gameScale = Math.max(0.38, Math.min(2.5, w / 950));
       } else {
-        // Landscape / desktop / laptop / wide screens
+        // Landscape mode
         const scaleW = w / 1366;
         const scaleH = h / 768;
         gameScale = Math.max(0.40, Math.min(2.5, Math.min(scaleW, scaleH * 1.15)));
       }
 
+      // Subtract mobile control bar height (when displayed) so the game ground sits right on top of the border
+      const mobileBarHeight = (w < 1025) ? (w <= 480 ? 58 : 64) : 0;
       groundHeight = Math.round(Math.max(45, Math.min(140, 80 * gameScale)));
-      groundY = h - groundHeight;
+      groundY = h - groundHeight - mobileBarHeight;
 
       // Kaiju scaled dimensions
       kitty.width = Math.round(460 * gameScale);
@@ -1054,7 +1176,7 @@
       rat.height = Math.round(440 * gameScale);
       rat.speed = Math.max(2.2, 3.8 * gameScale);
 
-      // Moat scaled dimensions (reduced to give more arena turf to Cat & Rat)
+      // Moat scaled dimensions
       moatWidth = Math.round(Math.max(55, Math.min(w * 0.18, 190 * gameScale)));
       moatX = Math.round((w - moatWidth) / 2);
     }
@@ -1104,13 +1226,20 @@
     // Input state
     const keys = { left: false, right: false, attack: false, grab: false };
 
+    function isPlayAgainButtonVisible() {
+      const activeOverlays = document.querySelectorAll('.overlay:not(.hidden)');
+      return activeOverlays.length > 0;
+    }
+
     window.addEventListener('keydown', (e) => {
       sound.init();
-      // Spacebar or Enter on End Screens triggers Play Again!
+      // Spacebar or Enter on End Screens triggers Play Again ONLY if Play Again button/overlay is showing!
       if (gameState === 'GAMEOVER' || gameState === 'VICTORY') {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
-          startNewGame();
+          if (isPlayAgainButtonVisible()) {
+            startNewGame();
+          }
           return;
         }
       }
@@ -1195,7 +1324,9 @@
       // Tap detection: short duration & small distance moved
       if (duration < 320 && dist < 30) {
         if (gameState === 'TITLE' || gameState === 'GAMEOVER' || gameState === 'VICTORY') {
-          startNewGame();
+          if (isPlayAgainButtonVisible()) {
+            startNewGame();
+          }
           return;
         }
 
@@ -1274,26 +1405,37 @@
       }
     });
 
-    // Touch controls buttons (optional bottom bar fallback)
+    // Touch controls buttons binding
     const btnLeft = document.getElementById('btn-left');
-    if (btnLeft) {
-      btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; sound.init(); });
-      btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
-    }
     const btnRight = document.getElementById('btn-right');
-    if (btnRight) {
-      btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; sound.init(); });
-      btnRight.addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
-    }
     const btnAttack = document.getElementById('btn-attack');
-    if (btnAttack) {
-      btnAttack.addEventListener('touchstart', (e) => { e.preventDefault(); triggerKittyCatch(); sound.init(); });
-    }
     const btnTailWhip = document.getElementById('btn-tailwhip');
-    if (btnTailWhip) {
-      btnTailWhip.addEventListener('touchstart', (e) => { e.preventDefault(); sound.init(); triggerKittyTailWhip(); });
-      btnTailWhip.addEventListener('click', (e) => { sound.init(); triggerKittyTailWhip(); });
+
+    function bindTouchControl(element, onPress, onRelease) {
+      if (!element) return;
+      const handlePress = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        sound.init();
+        element.classList.add('active');
+        if (onPress) onPress();
+      };
+      const handleRelease = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        element.classList.remove('active');
+        if (onRelease) onRelease();
+      };
+
+      element.addEventListener('touchstart', handlePress, { passive: false });
+      element.addEventListener('touchend', handleRelease, { passive: false });
+      element.addEventListener('mousedown', handlePress);
+      element.addEventListener('mouseup', handleRelease);
+      element.addEventListener('mouseleave', handleRelease);
     }
+
+    bindTouchControl(btnLeft, () => { keys.left = true; }, () => { keys.left = false; });
+    bindTouchControl(btnRight, () => { keys.right = true; }, () => { keys.right = false; });
+    bindTouchControl(btnAttack, () => { triggerKittyCatch(); }, null);
+    bindTouchControl(btnTailWhip, () => { triggerKittyTailWhip(); }, null);
 
     // Orientation lock disabled for portrait mode priority
     function tryLockLandscape() {}
@@ -1336,7 +1478,9 @@
         sound.init();
         tryLockLandscape();
         if (gameState === 'TITLE' || gameState === 'GAMEOVER' || gameState === 'VICTORY') {
-          startNewGame();
+          if (!overlay.classList.contains('hidden')) {
+            startNewGame();
+          }
         }
       });
     });
@@ -3383,7 +3527,6 @@
 
       if (img && img.complete && img.naturalWidth !== 0) {
         ctx.save();
-        ctx.globalCompositeOperation = 'multiply';
         ctx.drawImage(img, -char.width / 2, -char.height / 2, char.width, char.height);
         ctx.restore();
       } else {

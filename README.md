@@ -16,9 +16,9 @@ A 2D browser battle game where **Kitty Kat** fights **Mister Mouse** across a ci
 * 🌀 **Tail Whip & Deflect**: Press `T Key`
 
 ### 📱 Mobile Touch Controls
-* 🐾 **Move**: Touch & Drag horizontally
-* 🐟 **Throw Fish**: Tap Screen
-* 🌀 **Tail Whip & Deflect**: Double-Tap Screen
+* 🐾 **Move**: Drag horizontally across the screen, or use the **◀** / **▶** arrow buttons (bottom-left).
+* 🐟 **Throw Fish**: Tap the screen, or press the **🐟** action button (bottom-right).
+* 🌀 **Tail Whip & Deflect**: Double-tap the screen, or press the **🌀** action button (bottom-right).
 
 ---
 
