@@ -725,12 +725,42 @@
     }
 
     #victory-overlay {
-      background: transparent !important;
-      backdrop-filter: none !important;
-      justify-content: flex-start !important;
+      background: rgba(0, 0, 0, 0.35) !important;
+      backdrop-filter: blur(4px) !important;
+      -webkit-backdrop-filter: blur(4px) !important;
+      justify-content: center !important;
       align-items: center !important;
       text-align: center !important;
-      padding-top: max(160px, 52vh) !important;
+      padding: 20px !important;
+    }
+
+    .victory-trophy-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .victory-trophy {
+      font-size: min(130px, 28vw);
+      line-height: 1;
+      margin-bottom: 8px;
+      animation: victoryBounce 1.5s ease-in-out infinite alternate;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    @keyframes victoryBounce {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-16px) scale(1.08); }
+    }
+
+    .victory-title {
+      color: #ffd700 !important;
+      text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), 0 0 25px rgba(255, 215, 0, 0.4);
+      font-size: min(2.8rem, 8.5vw);
+      margin: 0;
     }
 
     /* Kawaii Rotate Screen Overlay (Disabled for Portrait Mode) */
@@ -995,9 +1025,13 @@
       <button class="btn" id="restart-btn" style="margin-top: 25px;">TRY AGAIN 🔄</button>
     </div>
 
-    <!-- Minimal Victory Overlay -->
+    <!-- Victory Overlay with Big Native Emoji Trophy -->
     <div class="overlay hidden" id="victory-overlay">
-      <button class="btn" id="victory-btn">PLAY AGAIN 🔄</button>
+      <div class="victory-trophy-wrap">
+        <div class="victory-trophy">🏆</div>
+        <h1 class="game-title victory-title">VICTORY!</h1>
+      </div>
+      <button class="btn" id="victory-btn">PLAY AGAIN 🐾</button>
     </div>
 
     <!-- Kawaii Landscape Mode Prompt Overlay -->
@@ -1019,15 +1053,13 @@
     </div>
   </div>
 
-  <audio id="ios-silent-unlock" preload="auto" playsinline style="display:none;" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"></audio>
-
   <script>
     // --- WEB AUDIO SYNTHESIZER ---
     class SoundFX {
       constructor() {
         this.ctx = null;
         this.muted = false;
-        this.unlocked = false;
+        this.keepAliveNode = null;
       }
 
       init() {
@@ -1040,38 +1072,30 @@
             if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
               this.ctx.resume().catch(() => { });
             }
-            if (!this.unlocked) {
-              // iOS WebKit silent 1-sample buffer to unlock hardware audio pipeline
+            if (!this.keepAliveNode) {
+              // Pure Web Audio silent looping node to keep audio engine active throughout the game
               const buffer = this.ctx.createBuffer(1, 1, 22050);
               const source = this.ctx.createBufferSource();
               source.buffer = buffer;
+              source.loop = true;
               source.connect(this.ctx.destination);
               source.start(0);
-              this.unlocked = true;
+              this.keepAliveNode = source;
             }
-          }
-          // Wake iOS HTML5 media playback session
-          const silentAudio = document.getElementById('ios-silent-unlock');
-          if (silentAudio && silentAudio.paused) {
-            silentAudio.play().catch(() => { });
           }
         } catch (e) {
           console.warn('SoundFX init error:', e);
         }
       }
 
-      ensureRunning() {
-        if (!this.ctx) {
-          this.init();
-        } else if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+      resume() {
+        if (this.ctx && (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted')) {
           this.ctx.resume().catch(() => { });
         }
       }
 
       playCrumble() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1088,9 +1112,7 @@
       }
 
       playCollapse() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1107,9 +1129,7 @@
       }
 
       playSwipe() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1126,9 +1146,7 @@
       }
 
       playWhip() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1145,9 +1163,7 @@
       }
 
       playEat() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1164,9 +1180,7 @@
       }
 
       playHurt() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1183,9 +1197,7 @@
       }
 
       playCountBeep(freq = 520) {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1202,9 +1214,7 @@
       }
 
       playHeadKnock() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -1221,9 +1231,7 @@
       }
 
       playVictoryFanfare() {
-        if (this.muted) return;
-        this.ensureRunning();
-        if (!this.ctx) return;
+        if (this.muted || !this.ctx) return;
         try {
           const notes = [523.25, 659.25, 783.99, 1046.50]; // Triumphant C5, E5, G5, C6 Fanfare Arpeggio
           notes.forEach((freq, idx) => {
@@ -1829,29 +1837,23 @@
 
     // Overlay Buttons & Tap-anywhere on Overlay to Start/Restart (like spacebar)
     const startBtn = document.getElementById('start-btn');
-    const restartBtn = document.getElementById('restart-btn');
-    const victoryBtn = document.getElementById('victory-btn');
-
-    function bindGameButton(btn) {
-      if (!btn) return;
-      let lastTrigger = 0;
-      const trigger = (e) => {
-        const now = Date.now();
-        if (now - lastTrigger < 300) return; // Prevent double trigger from touchend + click
-        lastTrigger = now;
-        sound.init();
-        tryLockLandscape();
-        startNewGame();
-      };
-      btn.addEventListener('touchend', trigger, { passive: false });
-      btn.addEventListener('click', trigger);
+    if (startBtn) {
+      startBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
+      startBtn.addEventListener('touchstart', () => { sound.init(); }, { passive: true });
     }
-    bindGameButton(startBtn);
-    bindGameButton(restartBtn);
-    bindGameButton(victoryBtn);
+    const restartBtn = document.getElementById('restart-btn');
+    if (restartBtn) {
+      restartBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
+      restartBtn.addEventListener('touchstart', () => { sound.init(); }, { passive: true });
+    }
+    const victoryBtn = document.getElementById('victory-btn');
+    if (victoryBtn) {
+      victoryBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
+      victoryBtn.addEventListener('touchstart', () => { sound.init(); }, { passive: true });
+    }
 
     document.querySelectorAll('.overlay').forEach(overlay => {
-      const handleOverlayTap = (e) => {
+      overlay.addEventListener('click', (e) => {
         if (e.target && (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('.card'))) return;
         sound.init();
         tryLockLandscape();
@@ -1860,26 +1862,19 @@
             startNewGame();
           }
         }
-      };
-      overlay.addEventListener('click', handleOverlayTap);
-      overlay.addEventListener('touchend', handleOverlayTap, { passive: true });
+      });
     });
 
-    // Unlock audio context on any first user gesture (touchstart, touchend, click, pointerdown, keydown)
-    const unlockEvents = ['touchstart', 'touchend', 'click', 'pointerdown', 'keydown'];
+    // Unlock audio context on any first user gesture (touchstart, pointerdown, keydown)
     const unlockAudio = () => {
       sound.init();
-      if (sound.ctx && sound.ctx.state === 'running' && sound.unlocked) {
-        unlockEvents.forEach(evt => {
-          window.removeEventListener(evt, unlockAudio, true);
-          document.removeEventListener(evt, unlockAudio, true);
-        });
-      }
+      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
     };
-    unlockEvents.forEach(evt => {
-      window.addEventListener(evt, unlockAudio, { passive: true, capture: true });
-      document.addEventListener(evt, unlockAudio, { passive: true, capture: true });
-    });
+    window.addEventListener('touchstart', unlockAudio, { passive: true });
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio, { passive: true });
 
     // Spawn Floating Cat & Rat Emojis along upper sky & lower margins
     function spawnTitleFloatingEmojis() {
@@ -2806,10 +2801,8 @@
       kitty.state = 'happy';
       kitty.direction = 1;
 
-      // After a few seconds (~2.5 seconds = 150 frames), show the Play Again button!
-      if (victoryTimer === 150) {
-        document.getElementById('victory-overlay').classList.remove('hidden');
-      }
+      // Ensure victory overlay with native trophy emoji is visible
+      document.getElementById('victory-overlay').classList.remove('hidden');
 
       updateParticles();
     }
@@ -4117,17 +4110,15 @@
         });
       }
       sound.playVictoryFanfare();
+      document.getElementById('victory-overlay').classList.remove('hidden');
     }
 
     function renderVictoryUI() {
       if (gameState !== 'VICTORY') return;
 
-      const cx = canvas.width / 2;
-      const cy = canvas.height * 0.38;
-
       ctx.save();
 
-      // 1. Draw Golden Confetti Rain
+      // Draw Golden Confetti Rain
       goldConfetti.forEach(c => {
         ctx.save();
         ctx.translate(c.x, c.y);
@@ -4137,32 +4128,7 @@
         ctx.restore();
       });
 
-      // 2. Elastic Pop & Floating Bounce animation for Big Trophy Emoji
-      let scale = 1.0;
-      if (victoryTimer < 40) {
-        const p = victoryTimer / 40;
-        scale = Math.sin(p * Math.PI * 0.5) * 1.25;
-      } else {
-        scale = 1.0 + Math.sin((victoryTimer - 40) * 0.08) * 0.05;
-      }
-
-      const floatY = cy + Math.sin(victoryTimer * 0.07) * (12 * gameScale);
-
-      // 3. Render Big Trophy Emoji 🏆 (Clean emoji without any yellow circles, glows, or sunbursts)
-      const trophyEmojiSize = Math.round(Math.max(120, Math.min(240, 160 * gameScale)));
-
-      ctx.save();
-      ctx.translate(cx, floatY);
-      ctx.scale(scale, scale);
-
-      ctx.font = `${trophyEmojiSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🏆', 0, 0);
-
-      ctx.restore(); // Restore trophy scale & translate
-
-      ctx.restore(); // Restore outer save
+      ctx.restore();
     }
 
     // --- MAIN GAME LOOP ---
