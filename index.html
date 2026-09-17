@@ -144,18 +144,27 @@
     }
 
     @media (max-width: 768px) {
-      .instructions-desktop {
+      .instructions-desktop,
+      .instructions-badge-desktop {
         display: none !important;
       }
       .instructions-mobile {
         display: flex !important;
       }
-      .instructions-badge-desktop {
-        display: none !important;
-      }
       .instructions-badge-mobile {
         display: inline !important;
       }
+    }
+
+    body.is-mobile-device .instructions-desktop,
+    body.is-mobile-device .instructions-badge-desktop {
+      display: none !important;
+    }
+    body.is-mobile-device .instructions-mobile {
+      display: flex !important;
+    }
+    body.is-mobile-device .instructions-badge-mobile {
+      display: inline !important;
     }
 
     .btn {
@@ -340,6 +349,21 @@
     }
 
     /* Small Screen Optimization (Phones & Small Tablets) */
+    /* Responsive HUD & Character Name Line-Break Optimization */
+    .hud-name-br {
+      display: none;
+    }
+
+    body.is-mobile-device .hud-name-br {
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .hud-name-br {
+        display: block;
+      }
+    }
+
     @media (max-width: 768px) {
       #hud {
         padding: 6px 8px;
@@ -358,16 +382,28 @@
       }
 
       .hud-title {
-        font-size: clamp(0.65rem, 2.7vw, 0.82rem);
-        white-space: nowrap;
-        gap: 2px;
+        font-size: clamp(0.68rem, 2.8vw, 0.88rem);
+        white-space: normal;
+        line-height: 1.15;
+        gap: 4px;
         display: flex;
         justify-content: space-between;
         align-items: center;
       }
 
-      .hud-title span {
+      .hud-title .hud-name {
+        white-space: normal;
+        line-height: 1.15;
+      }
+
+      .hud-title span:not(#nap-pct):not(#cheese-pct) {
+        white-space: normal;
+      }
+
+      #nap-pct, #cheese-pct {
         white-space: nowrap;
+        font-size: 0.85em;
+        align-self: center;
       }
 
       .meter-bar {
@@ -389,6 +425,68 @@
         padding: 16px 20px;
         max-width: 90vw;
       }
+    }
+
+    body.is-mobile-device #hud {
+      padding: 6px 8px;
+      gap: 6px;
+    }
+
+    body.is-mobile-device .hud-box {
+      min-width: 0;
+      flex: 1;
+      padding: 5px 8px;
+      border-radius: 12px;
+      border-width: 2px;
+      box-shadow: 2px 2px 0px #000000;
+      gap: 3px;
+      overflow: hidden;
+    }
+
+    body.is-mobile-device .hud-title {
+      font-size: clamp(0.68rem, 2.8vw, 0.88rem);
+      white-space: normal;
+      line-height: 1.15;
+      gap: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    body.is-mobile-device .hud-title .hud-name {
+      white-space: normal;
+      line-height: 1.15;
+    }
+
+    body.is-mobile-device .hud-title span:not(#nap-pct):not(#cheese-pct) {
+      white-space: normal;
+    }
+
+    body.is-mobile-device #nap-pct,
+    body.is-mobile-device #cheese-pct {
+      white-space: nowrap;
+      font-size: 0.85em;
+      align-self: center;
+    }
+
+    body.is-mobile-device .meter-bar {
+      height: 14px;
+      border-radius: 8px;
+      border-width: 2px;
+      overflow: hidden;
+    }
+
+    body.is-mobile-device h1.game-title {
+      font-size: min(2.5rem, 9vw);
+    }
+
+    body.is-mobile-device .subtitle {
+      font-size: min(1.2rem, 5vw);
+    }
+
+    body.is-mobile-device .card {
+      padding: 16px 20px;
+      max-width: 90vw;
     }
 
     /* Kawaii Spinner Asset Loader */
@@ -425,12 +523,16 @@
       -webkit-backdrop-filter: blur(8px);
       border-top: 3.5px solid #000000;
       box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
-      display: flex;
+      display: none; /* Visibility controlled dynamically by isMobileDevice() conditional */
       justify-content: space-between;
       align-items: center;
       padding: 0 16px;
       pointer-events: none;
       z-index: 8;
+    }
+
+    body.is-mobile-device #mobile-controls {
+      display: flex !important;
     }
 
     .mobile-dpad,
@@ -491,12 +593,6 @@
     .btn-whip:active,
     .btn-whip.active {
       background: #74c0fc;
-    }
-
-    @media (min-width: 1025px) and (pointer: fine) {
-      #mobile-controls {
-        display: none !important;
-      }
     }
 
     @media (max-width: 480px) {
@@ -781,7 +877,7 @@
       <!-- Kitty Kat Health Meter -->
       <div class="hud-box">
         <div class="hud-title">
-          <span>🐱 Kitty Kat</span>
+          <span class="hud-name">🐱 Kitty<br class="hud-name-br"> Kat</span>
           <span id="nap-pct">100%</span>
         </div>
         <div class="meter-bar">
@@ -795,7 +891,7 @@
       <!-- Mister Mouse Health Meter -->
       <div class="hud-box">
         <div class="hud-title">
-          <span>🐭 Mister Mouse</span>
+          <span class="hud-name">🐭 Mister<br class="hud-name-br"> Mouse</span>
           <span id="cheese-pct">100%</span>
         </div>
         <div class="meter-bar">
@@ -1218,6 +1314,56 @@
     let recentDestroys = [];
     let rampageActive = false;
 
+    /**
+     * Explicit conditional check to determine if the app is on a mobile device.
+     * Evaluates user agent string, iPadOS touch properties, hardware touch points,
+     * coarse pointer media features, and responsive viewport width.
+     */
+    function isMobileDevice() {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera || '';
+
+      // 1. Mobile OS / mobile browser User Agent detection
+      const mobileUARegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS|FxiOS|Tablet/i;
+      const isMobileUA = mobileUARegex.test(userAgent);
+
+      // 2. iPadOS 13+ detection (Desktop User Agent but multi-touch screen)
+      const isIPad = /Macintosh/i.test(userAgent) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1;
+
+      // 3. Touch hardware capabilities
+      const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+
+      // 4. Pointer device precision (coarse pointer / touch UI)
+      const isCoarsePointer = window.matchMedia && (
+        window.matchMedia('(pointer: coarse)').matches ||
+        window.matchMedia('(hover: none)').matches
+      );
+
+      // 5. Responsive viewport check as a contributing factor
+      const isSmallScreen = window.innerWidth <= 1024;
+
+      // Conditional logic: Device is a mobile device if mobile UA, iPadOS, or hardware touch with coarse pointer / small screen
+      return isMobileUA || isIPad || (hasTouch && (isCoarsePointer || isSmallScreen)) || (isSmallScreen && isCoarsePointer);
+    }
+
+    /**
+     * Updates mobile UI visibility based on the isMobileDevice() conditional.
+     * Shows/hides bottom touch control buttons (#mobile-controls) and toggles .is-mobile-device body class.
+     */
+    function updateMobileUIState() {
+      const mobileControls = document.getElementById('mobile-controls');
+      const isMobile = isMobileDevice();
+
+      if (isMobile) {
+        document.body.classList.add('is-mobile-device');
+        if (mobileControls) mobileControls.style.display = 'flex';
+      } else {
+        document.body.classList.remove('is-mobile-device');
+        if (mobileControls) mobileControls.style.display = 'none';
+      }
+
+      return isMobile;
+    }
+
     function updateDimensions() {
       const w = canvas.width;
       const h = canvas.height;
@@ -1233,8 +1379,9 @@
         gameScale = Math.max(0.40, Math.min(2.5, Math.min(scaleW, scaleH * 1.15)));
       }
 
-      // Subtract mobile control bar height (when displayed) so the game ground sits right on top of the border
-      const mobileBarHeight = (w < 1025) ? (w <= 480 ? 58 : 64) : 0;
+      // Check mobile device conditional to show/hide mobile UI buttons and adjust ground Y position
+      const isMobile = updateMobileUIState();
+      const mobileBarHeight = isMobile ? (w <= 480 ? 58 : 64) : 0;
       groundHeight = Math.round(Math.max(45, Math.min(140, 80 * gameScale)));
       groundY = h - groundHeight - mobileBarHeight;
 
