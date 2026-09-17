@@ -13,6 +13,10 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Patrick+Hand&family=Fredoka:wght@600;700&display=swap"
     rel="stylesheet">
+  <link rel="preload" as="image" href="assets/kitty-idle.webp" type="image/webp">
+  <link rel="preload" as="image" href="assets/mouse-idle.webp" type="image/webp">
+  <link rel="preload" as="image" href="assets/kitty-walk1.webp" type="image/webp">
+  <link rel="preload" as="image" href="assets/mouse-walk1.webp" type="image/webp">
   <style>
     * {
       box-sizing: border-box;
@@ -34,11 +38,14 @@
 
     #game-container {
       position: relative;
+      width: 100%;
       width: 100vw;
-      height: 100vh;
+      height: 100%;
+      height: 100dvh;
       display: flex;
       justify-content: center;
       align-items: center;
+      overflow: hidden;
     }
 
     canvas {
@@ -143,19 +150,7 @@
       display: none;
     }
 
-    @media (max-width: 768px) {
-      .instructions-desktop,
-      .instructions-badge-desktop {
-        display: none !important;
-      }
-      .instructions-mobile {
-        display: flex !important;
-      }
-      .instructions-badge-mobile {
-        display: inline !important;
-      }
-    }
-
+    /* Instructions display: Desktop instructions for desktops/laptops, mobile instructions for mobile devices */
     body.is-mobile-device .instructions-desktop,
     body.is-mobile-device .instructions-badge-desktop {
       display: none !important;
@@ -489,7 +484,7 @@
       max-width: 90vw;
     }
 
-    /* Kawaii Spinner Asset Loader */
+    /* Kawaii Spinner Asset Loader & Loading Text */
     .kawaii-spinner {
       width: 44px;
       height: 44px;
@@ -500,6 +495,29 @@
       border-radius: 50%;
       animation: kawaiiSpin 0.75s linear infinite;
       box-shadow: 2px 2px 0px #000000;
+      flex-shrink: 0;
+    }
+
+    .loading-text {
+      font-family: 'Gaegu', 'Patrick Hand', cursive;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #1e293b;
+      letter-spacing: 0.5px;
+      user-select: none;
+      -webkit-user-select: none;
+      animation: loadingPulse 1.4s ease-in-out infinite alternate;
+    }
+
+    @keyframes loadingPulse {
+      0% {
+        opacity: 0.75;
+        transform: scale(0.98);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1.02);
+      }
     }
 
     @keyframes kawaiiSpin {
@@ -515,24 +533,30 @@
     #mobile-controls {
       position: absolute;
       bottom: 0;
+      bottom: env(safe-area-inset-bottom, 0px);
       left: 0;
       width: 100%;
       height: 64px;
-      background: rgba(255, 255, 255, 0.88);
+      background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       border-top: 3.5px solid #000000;
       box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
-      display: none; /* Visibility controlled dynamically by isMobileDevice() conditional */
+      display: none !important; /* Strictly hidden by default on desktops and laptops */
       justify-content: space-between;
       align-items: center;
       padding: 0 16px;
-      pointer-events: none;
-      z-index: 8;
+      pointer-events: auto;
+      z-index: 25;
     }
 
+    /* Hard conditional: ONLY displayed on actual mobile devices (smartphones / tablets) */
     body.is-mobile-device #mobile-controls {
       display: flex !important;
+    }
+
+    body.is-mobile-device .overlay {
+      padding-bottom: 78px;
     }
 
     .mobile-dpad,
@@ -952,8 +976,9 @@
       </div>
 
       <!-- Kawaii Spinner Asset Loader -->
-      <div id="loader-container" style="display: flex; justify-content: center; align-items: center; margin-bottom: 14px; z-index: 10;">
+      <div id="loader-container" style="display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 14px; z-index: 10;">
         <div class="kawaii-spinner"></div>
+        <span class="loading-text" id="loading-text">Loading...</span>
       </div>
 
       <button class="btn" id="start-btn" style="position: relative; z-index: 10; display: none;">START BATTLE</button>
@@ -1175,38 +1200,77 @@
         this.isAllLoaded = false;
         this.onProgress = null;
         this.onComplete = null;
+        this._completedFired = false;
       }
 
-      loadSprite(key, src) {
+      loadSprite(key, webpSrc, fallbackPngSrc) {
         this.totalSprites++;
         const img = new Image();
         this.sprites[key] = img;
 
+        let isDone = false;
         const handleDone = () => {
+          if (isDone) return;
+          isDone = true;
           this.loadedCount++;
           if (this.onProgress) {
             this.onProgress(this.loadedCount, this.totalSprites);
           }
-          if (this.loadedCount >= this.totalSprites) {
+          if (this.loadedCount >= this.totalSprites && !this._completedFired) {
+            this._completedFired = true;
             this.isAllLoaded = true;
             if (this.onComplete) this.onComplete();
           }
         };
 
+        const tryFallback = () => {
+          if (fallbackPngSrc && img.src !== fallbackPngSrc) {
+            img.onerror = () => {
+              console.warn('Failed to load fallback sprite:', fallbackPngSrc);
+              handleDone();
+            };
+            img.onload = () => {
+              handleDone();
+            };
+            img.src = fallbackPngSrc;
+          } else {
+            handleDone();
+          }
+        };
+
         img.onload = () => {
           if ('decode' in img) {
-            img.decode().then(handleDone).catch(handleDone);
+            let decoded = false;
+            const decodeTimeout = setTimeout(() => {
+              if (!decoded) {
+                decoded = true;
+                handleDone();
+              }
+            }, 250);
+            img.decode().then(() => {
+              if (!decoded) {
+                decoded = true;
+                clearTimeout(decodeTimeout);
+                handleDone();
+              }
+            }).catch(() => {
+              if (!decoded) {
+                decoded = true;
+                clearTimeout(decodeTimeout);
+                handleDone();
+              }
+            });
           } else {
             handleDone();
           }
         };
 
         img.onerror = () => {
-          console.warn('Failed to load sprite:', src);
-          handleDone();
+          console.warn('WebP load failed, trying PNG fallback:', webpSrc);
+          tryFallback();
         };
 
-        img.src = src;
+        img.src = webpSrc;
       }
 
       get(key) {
@@ -1219,6 +1283,12 @@
     }
 
     const spriteMgr = new SpriteManager();
+    spriteMgr.onProgress = (loaded, total) => {
+      const loadingText = document.getElementById('loading-text');
+      if (loadingText) {
+        loadingText.textContent = `Loading... ${Math.round((loaded / total) * 100)}%`;
+      }
+    };
     spriteMgr.onComplete = () => {
       const loaderContainer = document.getElementById('loader-container');
       const startBtn = document.getElementById('start-btn');
@@ -1226,22 +1296,29 @@
       if (startBtn) startBtn.style.display = 'inline-block';
     };
 
-    spriteMgr.loadSprite('kitty-idle', 'assets/kitty-idle.png');
-    spriteMgr.loadSprite('kitty-walk1', 'assets/kitty-walk1.png');
-    spriteMgr.loadSprite('kitty-walk2', 'assets/kitty-walk2.png');
-    spriteMgr.loadSprite('kitty-swipe', 'assets/kitty-swipe.png');
-    spriteMgr.loadSprite('kitty-happy', 'assets/kitty-happy.png');
-    spriteMgr.loadSprite('kitty-hurt', 'assets/kitty-hurt.png');
-    spriteMgr.loadSprite('kitty-sleepy', 'assets/kitty-sleepy.png');
+    // Safety timeout: Ensure Start Battle button is revealed within 3.5s even if mobile network hiccups
+    setTimeout(() => {
+      if (!spriteMgr._completedFired) {
+        spriteMgr._completedFired = true;
+        if (spriteMgr.onComplete) spriteMgr.onComplete();
+      }
+    }, 3500);
 
-    spriteMgr.loadSprite('mouse-idle', 'assets/mouse-idle.png');
-    spriteMgr.loadSprite('mouse-walk1', 'assets/mouse-walk1.png');
-    spriteMgr.loadSprite('mouse-walk2', 'assets/mouse-walk2.png');
-    spriteMgr.loadSprite('mouse-attack', 'assets/mouse-attack.png');
-    spriteMgr.loadSprite('mouse-happy', 'assets/mouse-happy.png');
-    spriteMgr.loadSprite('mouse-hurt', 'assets/mouse-hurt.png');
-    spriteMgr.loadSprite('mouse-defeated', 'assets/mouse-defeated.png');
-    spriteMgr.loadSprite('tank', 'assets/tank.png');
+    spriteMgr.loadSprite('kitty-idle', 'assets/kitty-idle.webp', 'assets/kitty-idle.png');
+    spriteMgr.loadSprite('kitty-walk1', 'assets/kitty-walk1.webp', 'assets/kitty-walk1.png');
+    spriteMgr.loadSprite('kitty-walk2', 'assets/kitty-walk2.webp', 'assets/kitty-walk2.png');
+    spriteMgr.loadSprite('kitty-swipe', 'assets/kitty-swipe.webp', 'assets/kitty-swipe.png');
+    spriteMgr.loadSprite('kitty-happy', 'assets/kitty-happy.webp', 'assets/kitty-happy.png');
+    spriteMgr.loadSprite('kitty-hurt', 'assets/kitty-hurt.webp', 'assets/kitty-hurt.png');
+    spriteMgr.loadSprite('kitty-sleepy', 'assets/kitty-sleepy.webp', 'assets/kitty-sleepy.png');
+
+    spriteMgr.loadSprite('mouse-idle', 'assets/mouse-idle.webp', 'assets/mouse-idle.png');
+    spriteMgr.loadSprite('mouse-walk1', 'assets/mouse-walk1.webp', 'assets/mouse-walk1.png');
+    spriteMgr.loadSprite('mouse-walk2', 'assets/mouse-walk2.webp', 'assets/mouse-walk2.png');
+    spriteMgr.loadSprite('mouse-attack', 'assets/mouse-attack.webp', 'assets/mouse-attack.png');
+    spriteMgr.loadSprite('mouse-happy', 'assets/mouse-happy.webp', 'assets/mouse-happy.png');
+    spriteMgr.loadSprite('mouse-hurt', 'assets/mouse-hurt.webp', 'assets/mouse-hurt.png');
+    spriteMgr.loadSprite('mouse-defeated', 'assets/mouse-defeated.webp', 'assets/mouse-defeated.png');
 
     // --- GAME ENGINE & RESPONSIVE SCALING SYSTEM ---
     const canvas = document.getElementById('gameCanvas');
@@ -1315,38 +1392,39 @@
     let rampageActive = false;
 
     /**
-     * Explicit conditional check to determine if the app is on a mobile device.
-     * Evaluates user agent string, iPadOS touch properties, hardware touch points,
-     * coarse pointer media features, and responsive viewport width.
+     * Hard conditional check: Detects if the user is on an actual mobile device
+     * (smartphones, tablets, iPhones, iPads, Android devices).
+     * Strictly excludes desktop and laptop computers (Windows, Mac laptops, Linux desktops).
      */
     function isMobileDevice() {
-      const userAgent = navigator.userAgent || navigator.vendor || window.opera || '';
+      const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
 
-      // 1. Mobile OS / mobile browser User Agent detection
-      const mobileUARegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS|FxiOS|Tablet/i;
-      const isMobileUA = mobileUARegex.test(userAgent);
+      // Explicitly reject desktop & laptop platforms:
+      // Windows (desktop/laptop, even with touchscreen), macOS (non-iPad), Linux (non-Android), ChromeOS
+      const isWindows = /windows nt/i.test(ua);
+      const isMac = /macintosh/i.test(ua) && !(navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+      const isLinuxDesktop = /x11; linux/i.test(ua) && !/android/i.test(ua);
+      const isChromeOS = /cros/i.test(ua);
 
-      // 2. iPadOS 13+ detection (Desktop User Agent but multi-touch screen)
-      const isIPad = /Macintosh/i.test(userAgent) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1;
+      if (isWindows || isMac || isLinuxDesktop || isChromeOS) {
+        return false;
+      }
 
-      // 3. Touch hardware capabilities
+      // 1. Mobile OS / mobile browser User Agent detection (iOS, Android phones/tablets)
+      const isMobileUA = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|crios|fxios|tablet/i.test(ua);
+
+      // 2. iPadOS 13+ detection (reports Macintosh in UA, but has multi-touch screen points)
+      const isIPad = /macintosh/i.test(ua) && Boolean(navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+
+      // 3. Touch hardware capabilities on mobile platform
       const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 
-      // 4. Pointer device precision (coarse pointer / touch UI)
-      const isCoarsePointer = window.matchMedia && (
-        window.matchMedia('(pointer: coarse)').matches ||
-        window.matchMedia('(hover: none)').matches
-      );
-
-      // 5. Responsive viewport check as a contributing factor
-      const isSmallScreen = window.innerWidth <= 1024;
-
-      // Conditional logic: Device is a mobile device if mobile UA, iPadOS, or hardware touch with coarse pointer / small screen
-      return isMobileUA || isIPad || (hasTouch && (isCoarsePointer || isSmallScreen)) || (isSmallScreen && isCoarsePointer);
+      // Hard conditional: Return true only on actual mobile devices
+      return Boolean(isMobileUA || isIPad || hasTouch);
     }
 
     /**
-     * Updates mobile UI visibility based on the isMobileDevice() conditional.
+     * Updates mobile UI visibility based on the isMobileDevice() hard conditional.
      * Shows/hides bottom touch control buttons (#mobile-controls) and toggles .is-mobile-device body class.
      */
     function updateMobileUIState() {
@@ -1355,14 +1433,23 @@
 
       if (isMobile) {
         document.body.classList.add('is-mobile-device');
-        if (mobileControls) mobileControls.style.display = 'flex';
+        if (mobileControls) {
+          mobileControls.style.display = 'flex';
+          mobileControls.style.visibility = 'visible';
+        }
       } else {
         document.body.classList.remove('is-mobile-device');
-        if (mobileControls) mobileControls.style.display = 'none';
+        if (mobileControls) {
+          mobileControls.style.display = 'none';
+        }
       }
 
       return isMobile;
     }
+
+    // Run hard mobile UI conditional check immediately
+    updateMobileUIState();
+    document.addEventListener('DOMContentLoaded', updateMobileUIState);
 
     function updateDimensions() {
       const w = canvas.width;
@@ -1669,6 +1756,7 @@
 
     // When the device enters landscape, reset portrait-dismissed so it's ready if rotated back
     window.addEventListener('resize', () => {
+      updateMobileUIState();
       if (window.innerWidth > window.innerHeight) {
         document.body.classList.remove('portrait-dismissed');
       }
@@ -1676,6 +1764,7 @@
 
     if (screen.orientation) {
       screen.orientation.addEventListener('change', () => {
+        updateMobileUIState();
         if (screen.orientation.type && screen.orientation.type.includes('landscape')) {
           document.body.classList.remove('portrait-dismissed');
         }
@@ -2491,6 +2580,7 @@
 
     function startNewGame() {
       if (!spriteMgr.isAllLoaded) return;
+      updateMobileUIState();
       tryLockLandscape();
       score = 0;
       screenShake = 0;
