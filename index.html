@@ -1054,37 +1054,193 @@
   </div>
 
   <script>
+    // --- BATTLE-TESTED iOS UNMUTE UTILITY (Forces Web Audio to media speaker channel & keeps it active) ---
+    function unmute(context, allowBackgroundPlayback, forceIOSBehavior) {
+      if (allowBackgroundPlayback === void 0) { allowBackgroundPlayback = false; }
+      if (forceIOSBehavior === void 0) { forceIOSBehavior = false; }
+
+      var pageVisibilityAPI;
+      if (document.hidden !== undefined)
+        pageVisibilityAPI = { hidden: "hidden", visibilitychange: "visibilitychange" };
+      else if (document.webkitHidden !== undefined)
+        pageVisibilityAPI = { hidden: "webkitHidden", visibilitychange: "webkitvisibilitychange" };
+      else if (document.mozHidden !== undefined)
+        pageVisibilityAPI = { hidden: "mozHidden", visibilitychange: "mozvisibilitychange" };
+      else if (document.msHidden !== undefined)
+        pageVisibilityAPI = { hidden: "msHidden", visibilitychange: "msvisibilitychange" };
+
+      function addEventListeners(target, events, handler, capture, passive) {
+        for (var i = 0; i < events.length; ++i)
+          target.addEventListener(events[i], handler, { capture: capture, passive: passive });
+      }
+      function removeEventListeners(target, events, handler, capture, passive) {
+        for (var i = 0; i < events.length; ++i)
+          target.removeEventListener(events[i], handler, { capture: capture, passive: passive });
+      }
+      function noop() { }
+
+      var ua = navigator.userAgent.toLowerCase();
+      var isAndroid = /android/i.test(ua);
+      var isIOS = !isAndroid && (forceIOSBehavior ||
+        (ua.indexOf("iphone") >= 0 && ua.indexOf("like iphone") < 0) ||
+        (ua.indexOf("ipad") >= 0 && ua.indexOf("like ipad") < 0) ||
+        (ua.indexOf("ipod") >= 0 && ua.indexOf("like ipod") < 0) ||
+        (ua.indexOf("mac os x") >= 0 && navigator.maxTouchPoints > 0)
+      );
+
+      var allowPlayback = true;
+      function updatePlaybackState() {
+        var shouldAllowPlayback = (allowBackgroundPlayback || (
+          (!pageVisibilityAPI || !document[pageVisibilityAPI.hidden]) &&
+          (!isIOS || document.hasFocus())
+        ) ? true : false);
+
+        if (shouldAllowPlayback !== allowPlayback) {
+          allowPlayback = shouldAllowPlayback;
+          updateChannelState(false);
+          updateContextState();
+        }
+      }
+
+      function doc_visChange() {
+        updatePlaybackState();
+      }
+      if (pageVisibilityAPI)
+        addEventListeners(document, [pageVisibilityAPI.visibilitychange], doc_visChange, true, true);
+
+      function win_focusChange(evt) {
+        if (evt && evt.target !== window) return;
+        updatePlaybackState();
+      }
+      if (isIOS)
+        addEventListeners(window, ["focus", "blur"], win_focusChange, true, true);
+
+      function updateContextState() {
+        if (allowPlayback) {
+          if (context.state !== "running" && context.state !== "closed") {
+            if (hasMediaPlaybackEventOccurred) {
+              var p = context.resume();
+              if (p) p.then(noop, noop).catch(noop);
+            }
+          }
+        } else {
+          if (context.state === "running") {
+            var p = context.suspend();
+            if (p) p.then(noop, noop).catch(noop);
+          }
+        }
+      }
+
+      function context_statechange(evt) {
+        if (!evt || !evt.unmute_handled) {
+          evt.unmute_handled = true;
+          updateContextState();
+        }
+      }
+      addEventListeners(context, ["statechange"], context_statechange, true, true);
+      if (!context.onstatechange) context.onstatechange = context_statechange;
+
+      var channelTag = null;
+      function huffman(count, repeatStr) {
+        var e = repeatStr;
+        for (; count > 1; count--) e += repeatStr;
+        return e;
+      }
+      var silence = "data:audio/mpeg;base64,//uQx" + huffman(23, "A") + "WGluZwAAAA8AAAACAAACcQCA" + huffman(16, "gICA") + huffman(66, "/") + "8AAABhTEFNRTMuMTAwA8MAAAAAAAAAABQgJAUHQQAB9AAAAnGMHkkI" + huffman(320, "A") + "//sQxAADgnABGiAAQBCqgCRMAAgEAH" + huffman(15, "/") + "7+n/9FTuQsQH//////2NG0jWUGlio5gLQTOtIoeR2WX////X4s9Atb/JRVCbBUpeRUq" + huffman(18, "/") + "9RUi0f2jn/+xDECgPCjAEQAABN4AAANIAAAAQVTEFNRTMuMTAw" + huffman(97, "V") + "Q==";
+
+      function updateChannelState(isMediaPlaybackEvent) {
+        if (isIOS) {
+          if (allowPlayback) {
+            if (isMediaPlaybackEvent) {
+              if (!channelTag) {
+                var tmp = document.createElement("div");
+                tmp.innerHTML = "<audio x-webkit-airplay='deny'></audio>";
+                channelTag = tmp.children.item(0);
+                channelTag.controls = false;
+                channelTag.disableRemotePlayback = true;
+                channelTag.preload = "auto";
+                channelTag.src = silence;
+                channelTag.loop = true;
+                channelTag.load();
+              }
+              if (channelTag.paused) {
+                var p = channelTag.play();
+                if (p) p.then(noop, destroyChannelTag).catch(destroyChannelTag);
+              }
+            }
+          } else {
+            destroyChannelTag();
+          }
+        }
+      }
+
+      function destroyChannelTag() {
+        if (channelTag) {
+          channelTag.src = "about:blank";
+          channelTag.load();
+          channelTag = null;
+        }
+      }
+
+      var mediaPlaybackEvents = ["click", "contextmenu", "auxclick", "dblclick", "mousedown", "mouseup", "touchend", "keydown", "keyup"];
+      var hasMediaPlaybackEventOccurred = false;
+      function win_mediaPlaybackEvent() {
+        hasMediaPlaybackEventOccurred = true;
+        updateChannelState(true);
+        updateContextState();
+      }
+      addEventListeners(window, mediaPlaybackEvents, win_mediaPlaybackEvent, true, true);
+
+      return {
+        dispose: function() {
+          destroyChannelTag();
+          if (pageVisibilityAPI) removeEventListeners(document, [pageVisibilityAPI.visibilitychange], doc_visChange, true, true);
+          if (isIOS) removeEventListeners(window, ["focus", "blur"], win_focusChange, true, true);
+          removeEventListeners(window, mediaPlaybackEvents, win_mediaPlaybackEvent, true, true);
+          removeEventListeners(context, ["statechange"], context_statechange, true, true);
+          if (context.onstatechange === context_statechange) context.onstatechange = null;
+        }
+      };
+    }
+
     // --- WEB AUDIO SYNTHESIZER ---
     class SoundFX {
       constructor() {
         this.ctx = null;
         this.muted = false;
-        this.keepAliveNode = null;
+        this.unmuteController = null;
       }
 
       init() {
-        try {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (!this.ctx && AudioContext) {
-            this.ctx = new AudioContext();
+        // Modern WebKit iOS 16.4+ audioSession API: route to media playback speaker (ignores silent switch)
+        if ('audioSession' in navigator) {
+          try {
+            navigator.audioSession.type = 'playback';
+          } catch (e) { }
+        }
+
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            this.ctx = new AudioContextClass();
+            try {
+              this.unmuteController = unmute(this.ctx);
+            } catch (e) { }
           }
-          if (this.ctx) {
-            if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
-              this.ctx.resume().catch(() => { });
-            }
-            if (!this.keepAliveNode) {
-              // Pure Web Audio silent looping node to keep audio engine active throughout the game
-              const buffer = this.ctx.createBuffer(1, 1, 22050);
-              const source = this.ctx.createBufferSource();
-              source.buffer = buffer;
-              source.loop = true;
-              source.connect(this.ctx.destination);
-              source.start(0);
-              this.keepAliveNode = source;
-            }
+        }
+
+        if (this.ctx) {
+          if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+            this.ctx.resume().catch(() => { });
           }
-        } catch (e) {
-          console.warn('SoundFX init error:', e);
+          // Prime hardware audio pipe with a one-shot silent buffer on user gesture
+          try {
+            const buffer = this.ctx.createBuffer(1, 1, 22050);
+            const source = this.ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(this.ctx.destination);
+            source.start(0);
+          } catch (e) { }
         }
       }
 
@@ -1096,149 +1252,167 @@
 
       playCrumble() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(180, this.ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
-          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+          osc.frequency.setValueAtTime(180, t);
+          osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.15);
+          osc.start(t);
+          osc.stop(t + 0.15);
         } catch (e) { }
       }
 
       playCollapse() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'triangle';
-          osc.frequency.setValueAtTime(100, this.ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
-          gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+          osc.frequency.setValueAtTime(100, t);
+          osc.frequency.exponentialRampToValueAtTime(20, t + 0.4);
+          gain.gain.setValueAtTime(0.6, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.4);
+          osc.start(t);
+          osc.stop(t + 0.4);
         } catch (e) { }
       }
 
       playSwipe() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(400, this.ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
-          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+          osc.frequency.setValueAtTime(400, t);
+          osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.1);
+          osc.start(t);
+          osc.stop(t + 0.1);
         } catch (e) { }
       }
 
       playWhip() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(620, this.ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.18);
-          gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+          osc.frequency.setValueAtTime(620, t);
+          osc.frequency.exponentialRampToValueAtTime(140, t + 0.18);
+          gain.gain.setValueAtTime(0.35, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.18);
+          osc.start(t);
+          osc.stop(t + 0.18);
         } catch (e) { }
       }
 
       playEat() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'square';
-          osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-          osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.08);
-          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+          osc.frequency.setValueAtTime(300, t);
+          osc.frequency.setValueAtTime(600, t + 0.08);
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.2);
+          osc.start(t);
+          osc.stop(t + 0.2);
         } catch (e) { }
       }
 
       playHurt() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(220, this.ctx.currentTime);
-          osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.25);
-          gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+          osc.frequency.setValueAtTime(220, t);
+          osc.frequency.linearRampToValueAtTime(110, t + 0.25);
+          gain.gain.setValueAtTime(0.4, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.25);
+          osc.start(t);
+          osc.stop(t + 0.25);
         } catch (e) { }
       }
 
       playCountBeep(freq = 520) {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, this.ctx.currentTime + 0.12);
-          gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+          osc.frequency.setValueAtTime(freq, t);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, t + 0.12);
+          gain.gain.setValueAtTime(0.35, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.12);
+          osc.start(t);
+          osc.stop(t + 0.12);
         } catch (e) { }
       }
 
       playHeadKnock() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
+          const t = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'triangle';
-          osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.22);
-          gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.22);
+          osc.frequency.setValueAtTime(150, t);
+          osc.frequency.exponentialRampToValueAtTime(60, t + 0.22);
+          gain.gain.setValueAtTime(0.6, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.22);
+          osc.start(t);
+          osc.stop(t + 0.22);
         } catch (e) { }
       }
 
       playVictoryFanfare() {
         if (this.muted || !this.ctx) return;
+        this.resume();
         try {
           const notes = [523.25, 659.25, 783.99, 1046.50]; // Triumphant C5, E5, G5, C6 Fanfare Arpeggio
+          const t = this.ctx.currentTime;
           notes.forEach((freq, idx) => {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = idx === 3 ? 'triangle' : 'sine';
-            const startTime = this.ctx.currentTime + idx * 0.12;
+            const startTime = t + idx * 0.12;
             const duration = idx === 3 ? 0.6 : 0.2;
             osc.frequency.setValueAtTime(freq, startTime);
             gain.gain.setValueAtTime(0.001, startTime);
@@ -1836,21 +2010,30 @@
     }
 
     // Overlay Buttons & Tap-anywhere on Overlay to Start/Restart (like spacebar)
+    function bindGameButton(btn, onTrigger) {
+      if (!btn) return;
+      let lastTrigger = 0;
+      const fire = (e) => {
+        if (e && e.type === 'touchend') {
+          e.preventDefault();
+        }
+        const now = Date.now();
+        if (now - lastTrigger < 350) return;
+        lastTrigger = now;
+        sound.init();
+        tryLockLandscape();
+        onTrigger();
+      };
+      btn.addEventListener('touchend', fire, { passive: false });
+      btn.addEventListener('click', fire);
+    }
+
     const startBtn = document.getElementById('start-btn');
-    if (startBtn) {
-      startBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
-      startBtn.addEventListener('touchstart', () => { sound.init(); }, { passive: true });
-    }
+    bindGameButton(startBtn, () => { startNewGame(); });
     const restartBtn = document.getElementById('restart-btn');
-    if (restartBtn) {
-      restartBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
-      restartBtn.addEventListener('touchstart', () => { sound.init(); }, { passive: true });
-    }
+    bindGameButton(restartBtn, () => { startNewGame(); });
     const victoryBtn = document.getElementById('victory-btn');
-    if (victoryBtn) {
-      victoryBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
-      victoryBtn.addEventListener('touchstart', () => { sound.init(); }, { passive: true });
-    }
+    bindGameButton(victoryBtn, () => { startNewGame(); });
 
     document.querySelectorAll('.overlay').forEach(overlay => {
       overlay.addEventListener('click', (e) => {
@@ -1865,16 +2048,22 @@
       });
     });
 
-    // Unlock audio context on any first user gesture (touchstart, pointerdown, keydown)
+    // Unlock audio context on any first user gesture (touchend, click, keydown)
     const unlockAudio = () => {
       sound.init();
-      window.removeEventListener('touchstart', unlockAudio);
-      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('touchend', unlockAudio);
+      window.removeEventListener('click', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     };
-    window.addEventListener('touchstart', unlockAudio, { passive: true });
-    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('touchend', unlockAudio, { passive: true });
+    window.addEventListener('click', unlockAudio, { passive: true });
     window.addEventListener('keydown', unlockAudio, { passive: true });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        sound.resume();
+      }
+    });
 
     // Spawn Floating Cat & Rat Emojis along upper sky & lower margins
     function spawnTitleFloatingEmojis() {
