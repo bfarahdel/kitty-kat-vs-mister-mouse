@@ -1200,7 +1200,6 @@
         this.isAllLoaded = false;
         this.onProgress = null;
         this.onComplete = null;
-        this._completedFired = false;
       }
 
       loadSprite(key, webpSrc, fallbackPngSrc) {
@@ -1216,8 +1215,7 @@
           if (this.onProgress) {
             this.onProgress(this.loadedCount, this.totalSprites);
           }
-          if (this.loadedCount >= this.totalSprites && !this._completedFired) {
-            this._completedFired = true;
+          if (this.loadedCount >= this.totalSprites) {
             this.isAllLoaded = true;
             if (this.onComplete) this.onComplete();
           }
@@ -1233,36 +1231,16 @@
               handleDone();
             };
             img.src = fallbackPngSrc;
+            if (img.complete && img.naturalWidth > 0) {
+              handleDone();
+            }
           } else {
             handleDone();
           }
         };
 
         img.onload = () => {
-          if ('decode' in img) {
-            let decoded = false;
-            const decodeTimeout = setTimeout(() => {
-              if (!decoded) {
-                decoded = true;
-                handleDone();
-              }
-            }, 250);
-            img.decode().then(() => {
-              if (!decoded) {
-                decoded = true;
-                clearTimeout(decodeTimeout);
-                handleDone();
-              }
-            }).catch(() => {
-              if (!decoded) {
-                decoded = true;
-                clearTimeout(decodeTimeout);
-                handleDone();
-              }
-            });
-          } else {
-            handleDone();
-          }
+          handleDone();
         };
 
         img.onerror = () => {
@@ -1271,6 +1249,11 @@
         };
 
         img.src = webpSrc;
+
+        // In case image is already in browser cache and complete immediately
+        if (img.complete && img.naturalWidth > 0) {
+          handleDone();
+        }
       }
 
       get(key) {
@@ -1283,26 +1266,34 @@
     }
 
     const spriteMgr = new SpriteManager();
+    let pageFullyLoaded = (document.readyState === 'complete');
+    if (!pageFullyLoaded) {
+      window.addEventListener('load', () => {
+        pageFullyLoaded = true;
+        checkAllReady();
+      });
+    }
+
+    function checkAllReady() {
+      // STRICT REQUIREMENT: Only show START BATTLE button when ALL assets and the page are 100% loaded
+      if (spriteMgr.isAllLoaded && pageFullyLoaded) {
+        const loaderContainer = document.getElementById('loader-container');
+        const startBtn = document.getElementById('start-btn');
+        if (loaderContainer) loaderContainer.style.display = 'none';
+        if (startBtn) startBtn.style.display = 'inline-block';
+      }
+    }
+
     spriteMgr.onProgress = (loaded, total) => {
       const loadingText = document.getElementById('loading-text');
       if (loadingText) {
         loadingText.textContent = `Loading... ${Math.round((loaded / total) * 100)}%`;
       }
     };
-    spriteMgr.onComplete = () => {
-      const loaderContainer = document.getElementById('loader-container');
-      const startBtn = document.getElementById('start-btn');
-      if (loaderContainer) loaderContainer.style.display = 'none';
-      if (startBtn) startBtn.style.display = 'inline-block';
-    };
 
-    // Safety timeout: Ensure Start Battle button is revealed within 3.5s even if mobile network hiccups
-    setTimeout(() => {
-      if (!spriteMgr._completedFired) {
-        spriteMgr._completedFired = true;
-        if (spriteMgr.onComplete) spriteMgr.onComplete();
-      }
-    }, 3500);
+    spriteMgr.onComplete = () => {
+      checkAllReady();
+    };
 
     spriteMgr.loadSprite('kitty-idle', 'assets/kitty-idle.webp', 'assets/kitty-idle.png');
     spriteMgr.loadSprite('kitty-walk1', 'assets/kitty-walk1.webp', 'assets/kitty-walk1.png');
