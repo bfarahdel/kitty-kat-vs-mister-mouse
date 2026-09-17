@@ -1019,164 +1019,229 @@
     </div>
   </div>
 
+  <audio id="ios-silent-unlock" preload="auto" playsinline style="display:none;" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"></audio>
+
   <script>
     // --- WEB AUDIO SYNTHESIZER ---
     class SoundFX {
       constructor() {
         this.ctx = null;
         this.muted = false;
+        this.unlocked = false;
       }
 
       init() {
-        if (!this.ctx) {
+        try {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext) {
+          if (!this.ctx && AudioContext) {
             this.ctx = new AudioContext();
           }
+          if (this.ctx) {
+            if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+              this.ctx.resume().catch(() => { });
+            }
+            if (!this.unlocked) {
+              // iOS WebKit silent 1-sample buffer to unlock hardware audio pipeline
+              const buffer = this.ctx.createBuffer(1, 1, 22050);
+              const source = this.ctx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(this.ctx.destination);
+              source.start(0);
+              this.unlocked = true;
+            }
+          }
+          // Wake iOS HTML5 media playback session
+          const silentAudio = document.getElementById('ios-silent-unlock');
+          if (silentAudio && silentAudio.paused) {
+            silentAudio.play().catch(() => { });
+          }
+        } catch (e) {
+          console.warn('SoundFX init error:', e);
         }
-        if (this.ctx && this.ctx.state === 'suspended') {
+      }
+
+      ensureRunning() {
+        if (!this.ctx) {
+          this.init();
+        } else if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
           this.ctx.resume().catch(() => { });
         }
       }
 
       playCrumble() {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.15);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.15);
+        } catch (e) { }
       }
 
       playCollapse() {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
-        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.4);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
+          gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.4);
+        } catch (e) { }
       }
 
       playSwipe() {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(400, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.1);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.1);
+        } catch (e) { }
       }
 
       playWhip() {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(620, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.18);
-        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.18);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(620, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.18);
+          gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.18);
+        } catch (e) { }
       }
 
       playEat() {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-        osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+          osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.2);
+        } catch (e) { }
       }
 
       playHurt() {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.25);
-        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.25);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.25);
+          gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.25);
+        } catch (e) { }
       }
 
       playCountBeep(freq = 520) {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, this.ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.12);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, this.ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.12);
+        } catch (e) { }
       }
 
       playHeadKnock() {
-        if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.22);
-        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.22);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.22);
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.22);
+          gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.22);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.22);
+        } catch (e) { }
       }
 
       playVictoryFanfare() {
-        if (this.muted || !this.ctx) return;
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // Triumphant C5, E5, G5, C6 Fanfare Arpeggio
-        notes.forEach((freq, idx) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = idx === 3 ? 'triangle' : 'sine';
-          const startTime = this.ctx.currentTime + idx * 0.12;
-          const duration = idx === 3 ? 0.6 : 0.2;
-          osc.frequency.setValueAtTime(freq, startTime);
-          gain.gain.setValueAtTime(0, startTime);
-          gain.gain.linearRampToValueAtTime(0.4, startTime + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(startTime);
-          osc.stop(startTime + duration);
-        });
+        if (this.muted) return;
+        this.ensureRunning();
+        if (!this.ctx) return;
+        try {
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // Triumphant C5, E5, G5, C6 Fanfare Arpeggio
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = idx === 3 ? 'triangle' : 'sine';
+            const startTime = this.ctx.currentTime + idx * 0.12;
+            const duration = idx === 3 ? 0.6 : 0.2;
+            osc.frequency.setValueAtTime(freq, startTime);
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.linearRampToValueAtTime(0.4, startTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+          });
+        } catch (e) { }
       }
     }
 
@@ -1764,14 +1829,29 @@
 
     // Overlay Buttons & Tap-anywhere on Overlay to Start/Restart (like spacebar)
     const startBtn = document.getElementById('start-btn');
-    if (startBtn) startBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
     const restartBtn = document.getElementById('restart-btn');
-    if (restartBtn) restartBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
     const victoryBtn = document.getElementById('victory-btn');
-    if (victoryBtn) victoryBtn.addEventListener('click', () => { sound.init(); tryLockLandscape(); startNewGame(); });
+
+    function bindGameButton(btn) {
+      if (!btn) return;
+      let lastTrigger = 0;
+      const trigger = (e) => {
+        const now = Date.now();
+        if (now - lastTrigger < 300) return; // Prevent double trigger from touchend + click
+        lastTrigger = now;
+        sound.init();
+        tryLockLandscape();
+        startNewGame();
+      };
+      btn.addEventListener('touchend', trigger, { passive: false });
+      btn.addEventListener('click', trigger);
+    }
+    bindGameButton(startBtn);
+    bindGameButton(restartBtn);
+    bindGameButton(victoryBtn);
 
     document.querySelectorAll('.overlay').forEach(overlay => {
-      overlay.addEventListener('click', (e) => {
+      const handleOverlayTap = (e) => {
         if (e.target && (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('.card'))) return;
         sound.init();
         tryLockLandscape();
@@ -1780,17 +1860,26 @@
             startNewGame();
           }
         }
-      });
+      };
+      overlay.addEventListener('click', handleOverlayTap);
+      overlay.addEventListener('touchend', handleOverlayTap, { passive: true });
     });
 
-    // Unlock audio context on any first user gesture (pointerdown or keydown)
+    // Unlock audio context on any first user gesture (touchstart, touchend, click, pointerdown, keydown)
+    const unlockEvents = ['touchstart', 'touchend', 'click', 'pointerdown', 'keydown'];
     const unlockAudio = () => {
       sound.init();
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
+      if (sound.ctx && sound.ctx.state === 'running' && sound.unlocked) {
+        unlockEvents.forEach(evt => {
+          window.removeEventListener(evt, unlockAudio, true);
+          document.removeEventListener(evt, unlockAudio, true);
+        });
+      }
     };
-    window.addEventListener('pointerdown', unlockAudio, { passive: true });
-    window.addEventListener('keydown', unlockAudio, { passive: true });
+    unlockEvents.forEach(evt => {
+      window.addEventListener(evt, unlockAudio, { passive: true, capture: true });
+      document.addEventListener(evt, unlockAudio, { passive: true, capture: true });
+    });
 
     // Spawn Floating Cat & Rat Emojis along upper sky & lower margins
     function spawnTitleFloatingEmojis() {
@@ -4048,25 +4137,7 @@
         ctx.restore();
       });
 
-      // 2. Spinning Golden Sunburst Rays behind Trophy
-      const rayCount = 12;
-      const rayAngleStep = (Math.PI * 2) / rayCount;
-      const spinOffset = Date.now() / 2500;
-
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.fillStyle = 'rgba(254, 202, 87, 0.16)';
-      for (let i = 0; i < rayCount; i++) {
-        const angle = spinOffset + i * rayAngleStep;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.arc(0, 0, Math.max(250, 360 * gameScale), angle - 0.15, angle + 0.15);
-        ctx.closePath();
-        ctx.fill();
-      }
-      ctx.restore();
-
-      // 3. Elastic Pop & Floating Bounce animation for Gold Trophy
+      // 2. Elastic Pop & Floating Bounce animation for Big Trophy Emoji
       let scale = 1.0;
       if (victoryTimer < 40) {
         const p = victoryTimer / 40;
@@ -4077,39 +4148,21 @@
 
       const floatY = cy + Math.sin(victoryTimer * 0.07) * (12 * gameScale);
 
-      // 4. Render Big Gold Trophy 🏆
-      const trophyEmojiSize = Math.round(Math.max(100, Math.min(240, 160 * gameScale)));
+      // 3. Render Big Trophy Emoji 🏆 (Clean emoji without any yellow circles, glows, or sunbursts)
+      const trophyEmojiSize = Math.round(Math.max(120, Math.min(240, 160 * gameScale)));
 
       ctx.save();
       ctx.translate(cx, floatY);
       ctx.scale(scale, scale);
 
-      // Gold Glow behind Trophy
-      const glowGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, trophyEmojiSize * 0.8);
-      glowGrad.addColorStop(0, 'rgba(255, 215, 0, 0.5)');
-      glowGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      ctx.arc(0, 0, trophyEmojiSize * 0.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Big Gold Trophy Emoji 🏆
-      ctx.font = `${trophyEmojiSize}px sans-serif`;
+      ctx.font = `${trophyEmojiSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('🏆', 0, 0);
 
-      // Sparkling Stars Orbiting Trophy
-      const starTime = Date.now() / 300;
-      for (let s = 0; s < 4; s++) {
-        const sa = starTime + (s * Math.PI) / 2;
-        const sx = Math.cos(sa) * (trophyEmojiSize * 0.65);
-        const sy = Math.sin(sa) * (trophyEmojiSize * 0.45);
-        ctx.font = `${Math.round(trophyEmojiSize * 0.22)}px sans-serif`;
-        ctx.fillText('✨', sx, sy);
-      }
+      ctx.restore(); // Restore trophy scale & translate
 
-      ctx.restore();
+      ctx.restore(); // Restore outer save
     }
 
     // --- MAIN GAME LOOP ---
